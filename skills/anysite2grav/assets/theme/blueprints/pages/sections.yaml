@@ -1,0 +1,68 @@
+title: Sections page
+extends@:
+  type: default
+  context: blueprints://pages
+
+form:
+  fields:
+    tabs:
+      fields:
+        content:
+          import@:
+            type: partials/page-fields
+            context: blueprints://pages
+        sections_tab:
+          type: tab
+          title: Sections
+          fields:
+            header.sections:
+              type: list
+              label: Sections
+              style: vertical
+              collapsed: true
+              help: Rendered top to bottom. "Shared" reuses a section page from /shared.
+              fields:
+                .type:
+                  type: select
+                  label: Type
+                  default: section
+                  options:
+                    section: Section
+                    shared: Shared section
+                .shared:
+                  type: text
+                  label: Shared section name
+                  help: Folder name under /shared (only for Shared sections)
+                .id:
+                  type: text
+                  label: Anchor id
+                .classes:
+                  type: array
+                  label: Style hooks
+                  value_only: true
+                  help: Rendered as src-<class> CSS hooks
+                .modal:
+                  type: toggle
+                  label: Show as modal dialog
+                  highlight: 1
+                  default: 0
+                  options: {1: Yes, 0: No}
+                  validate: {type: bool}
+                .background:
+                  type: media
+                  label: Background image
+                  sources: [page, site, url]
+                  accept: ['image/*']
+                .background_video.sources:
+                  type: array
+                  label: Background video files
+                  value_only: true
+                  help: Autoplaying muted video behind the section content
+                .blocks:
+                  type: list
+                  label: Blocks
+                  style: vertical
+                  collapsed: true
+                  import@:
+                    type: partials/block-fields
+                    context: blueprints://pages

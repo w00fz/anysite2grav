@@ -1,0 +1,40 @@
+{% set lang = grav.language.getActive ?: grav.language.getDefault ?: 'en' %}
+{% set nav = config.theme.navigation[lang] ?? config.theme.navigation[grav.language.getDefault ?: 'en'] ?? {} %}
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+{% block head deferred %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include 'partials/seo.html.twig' %}
+  {% if theme_analytics_allowed() %}{% include 'partials/analytics-head.html.twig' %}{% endif %}
+  {% if config.theme.favicon %}<link rel="icon" href="{{ url(config.theme.favicon) }}">{% endif %}
+{% endblock %}
+{% block stylesheets %}
+  {% do assets.addCss('theme://css/site.css', {priority: 100}) %}
+  {% do assets.addCss('theme://css/custom.css', {priority: 90}) %}
+{% endblock %}
+{% block javascripts %}
+  {% do assets.addJs('theme://js/site.js', {group: 'bottom', loading: 'defer'}) %}
+{% endblock %}
+{% block assets deferred %}
+  {# Form/CAPTCHA may register assets while the body renders. The default group is head. #}
+  {{ assets.all()|raw }}
+{% endblock %}
+</head>
+<body class="{% block body_classes %}{{ page.template }} {{ page.header.body_classes }}{% endblock %}">
+  {% if theme_analytics_allowed() %}{% include 'partials/analytics-body.html.twig' %}{% endif %}
+  <a class="skip-link" href="#main">{{ 'THEME_SKIP_TO_CONTENT'|t }}</a>
+  {% block header %}{% include 'partials/header.html.twig' %}{% endblock %}
+  <main id="main">
+    {% block body %}
+      {% block content %}{% endblock %}
+    {% endblock %}
+  </main>
+  {% block footer %}{% include 'partials/footer.html.twig' %}{% endblock %}
+  {% block modals %}{% include 'partials/modals.html.twig' %}{% endblock %}
+  {% block bottom %}
+    {{ assets.all('bottom')|raw }}
+  {% endblock %}
+</body>
+</html>

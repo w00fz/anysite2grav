@@ -1,0 +1,42 @@
+en:
+  THEME_SUBMENU: Submenu
+  THEME_PRIMARY_NAV: Main navigation
+  THEME_SKIP_TO_CONTENT: Skip to content
+  THEME_MENU: Menu
+  THEME_CLOSE: Close
+es:
+  THEME_SUBMENU: Submenú
+  THEME_PRIMARY_NAV: Navegación principal
+  THEME_SKIP_TO_CONTENT: Saltar al contenido
+  THEME_MENU: Menú
+  THEME_CLOSE: Cerrar
+fr:
+  THEME_SUBMENU: Sous-menu
+  THEME_PRIMARY_NAV: Navigation principale
+  THEME_SKIP_TO_CONTENT: Aller au contenu
+  THEME_MENU: Menu
+  THEME_CLOSE: Fermer
+nl:
+  THEME_SUBMENU: Submenu
+  THEME_PRIMARY_NAV: Hoofdnavigatie
+  THEME_SKIP_TO_CONTENT: Naar de inhoud
+  THEME_MENU: Menu
+  THEME_CLOSE: Sluiten
+de:
+  THEME_SUBMENU: Untermenü
+  THEME_PRIMARY_NAV: Hauptnavigation
+  THEME_SKIP_TO_CONTENT: Zum Inhalt springen
+  THEME_MENU: Menü
+  THEME_CLOSE: Schließen
+it:
+  THEME_SUBMENU: Sottomenu
+  THEME_PRIMARY_NAV: Navigazione principale
+  THEME_SKIP_TO_CONTENT: Vai al contenuto
+  THEME_MENU: Menu
+  THEME_CLOSE: Chiudi
+pt:
+  THEME_SUBMENU: Submenu
+  THEME_PRIMARY_NAV: Navegação principal
+  THEME_SKIP_TO_CONTENT: Ir para o conteúdo
+  THEME_MENU: Menu
+  THEME_CLOSE: Fechar

@@ -1,8 +1,10 @@
-# website-to-grav
+# anysite2grav
 
 An agent skill that turns a live website into a local [Grav 2](https://getgrav.org) site as close to 1:1 as it can get, then hands your agent the keys.
 
 **Overview:** open [`docs/index.html`](docs/index.html) in a browser for a visual walkthrough.
+
+**Website:** [anysite2grav.djamil.dev](https://anysite2grav.djamil.dev).
 
 Give it a URL and it will:
 
@@ -12,40 +14,70 @@ Give it a URL and it will:
 4. **Audit the site.** It inventories analytics and third-party tags with their IDs, every form (including ones in modals), embeds, inline code, fonts and the palette.
 5. **Ask what matters.** Theme name, Tailwind or plain CSS, native multilang or per-language trees, how each form should deliver (save, email, webhook, keep the embed), the CAPTCHA provider (Grav's built-in Cap by default), and whether analytics are ported (production hosts only).
 6. **Recreate the content.** One Grav page per URL, with the exact title and meta, OG tags, provenance, structured `sections` (headings, text, lists, images, galleries, card grids, background videos, buttons, embeds, forms, modals) or Markdown for articles. Pages with more than three horizontal sections become **modular pages**, one module per section (hero, cards, gallery, form, shared, section), each with its own Admin form and media. Shorter pages stay single pages. Shared sections are stored once, missing parents are created, source redirects are kept, and media is deduped by hash into page or site media.
-7. **Build a standalone theme** from the source's measured styles. The header, dropdown menus, CTAs, language switcher and footer are all editable in Admin, alongside Admin2 blueprints, preview-host `noindex`, host-gated analytics, a `DESIGN.md`, and an optional Tailwind 4 build.
+7. **Build a standalone theme** from the source's measured styles. The header, dropdown menus, CTAs, language switcher and footer are all editable in Admin, alongside reusable blueprints, preview-host `noindex`, host-gated analytics, a `DESIGN.md`, and an optional Tailwind 4 build. Selected official Quark2 conventions make templates and assets easier to extend while preserving your site's design.
 8. **Convert forms** into Grav Form pages (XHR submit, Cap) embedded wherever the source showed them.
 9. **Iterate to parity.** It captures source and local screenshots side by side and runs a route-by-route verifier (status, titles, text coverage, media, forms, leftover CDN assets, `lang`/hreflang, noindex, analytics leakage, redirects) until both agree.
 
 ## Install
 
-**Claude Code** (as a plugin):
+### Codex
 
-```
-/plugin marketplace add w00fz/grav-skills
-/plugin install website-to-grav@grav-skills
+Paste this prompt into Codex (not your terminal):
+
+```text
+$skill-installer Install anysite2grav from https://github.com/w00fz/anysite2grav/tree/main/skills/anysite2grav
 ```
 
-Or copy (or symlink) the skill folder into your personal skills directory:
+Codex's bundled installer can install skills from GitHub repositories. If the skill does not appear, restart Codex. See the [official installation guidance](https://learn.chatgpt.com/docs/build-skills#install-curated-skills-for-local-use).
+
+<details>
+<summary>Manual installation / development</summary>
+
+Use a linked working copy when you want to edit the skill or update it with Git:
 
 ```bash
-ln -s "$PWD/skills/website-to-grav" ~/.claude/skills/website-to-grav
+git clone https://github.com/w00fz/anysite2grav.git ~/Projects/anysite2grav
+mkdir -p ~/.agents/skills
+ln -s ~/Projects/anysite2grav/skills/anysite2grav ~/.agents/skills/anysite2grav
 ```
 
-**Codex**:
+Update the working copy with `git pull`. Codex supports symlinked skill folders in its [documented local skill locations](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills).
+
+</details>
+
+### Claude Code
+
+Install as a plugin:
+
+```text
+/plugin marketplace add w00fz/anysite2grav
+/plugin install anysite2grav@anysite2grav
+```
+
+Or link a local working copy:
 
 ```bash
-ln -s "$PWD/skills/website-to-grav" ~/.codex/skills/website-to-grav
+mkdir -p ~/.claude/skills
+ln -s "$PWD/skills/anysite2grav" ~/.claude/skills/anysite2grav
 ```
 
-Other agents that support the [Agent Skills](https://agentskills.io) format can load `skills/website-to-grav/` the same way.
+Other agents that support the [Agent Skills](https://agentskills.io) format can load `skills/anysite2grav/`.
+
+The repository is private; installation requires GitHub read access.
 
 ## Use
 
 > Convert https://example.com to Grav.
 
-> Use $website-to-grav to rebuild our Webflow site locally in ~/Sites/example-grav, with Tailwind.
+> Use $anysite2grav to rebuild our Webflow site locally in ~/Sites/example-grav, with Tailwind.
 
 The skill walks through 13 checkpoints and stops to ask before anything that is the user's call (global client config, form delivery, analytics, licenses).
+
+## Theme conventions
+
+The scaffold draws on a [source-linked review of official Quark2](skills/anysite2grav/references/quark2-conventions.md): deferred head assets for embedded plugins, focused Twig blocks, reusable page fields, translated navigation labels and current-page semantics. It remains a standalone theme built from the source site's styles.
+
+Project CSS goes in `css/custom.css`, after the generated build. A forced scaffold rebuild preserves settings edited in Admin, custom CSS and theme blueprints. Use `--force --reset-config` to deliberately recreate site settings from the audit, or `--force-templates` to replace skeleton files and the theme blueprint. See the [theme guide](skills/anysite2grav/references/theme.md) before customizing.
 
 ## Requirements
 
@@ -56,14 +88,14 @@ The skill walks through 13 checkpoints and stops to ask before anything that is 
 ## Layout
 
 ```
-skills/website-to-grav/
+skills/anysite2grav/
   SKILL.md                 workflow, decisions, invariants
   references/              setup, content model, theme, forms, analytics/SEO, platforms, verification
   scripts/                 crawl, audit, extract, media, pages, theme, forms, capture, verify, install, MCP
   assets/theme/            standalone Grav theme skeleton
   assets/docker/           optional Docker runtime (Grav + Admin2, Mailpit)
   agents/openai.yaml       Codex UI metadata
-docs/                      GitHub Pages overview site
+docs/                      static overview site
 ```
 
 ## Scripts at a glance
@@ -83,6 +115,34 @@ docs/                      GitHub Pages overview site
 | `capture_pages.mjs` | Playwright screenshots (source vs local) and computed design tokens |
 | `verify_parity.py` | route-by-route parity report |
 | `grav_config.php` | merge JSON into Grav YAML / lint frontmatter with Grav's own parser |
+
+## Validate theme changes
+
+Use PHP 8.3+ and an installed Grav 2 runtime for the regression suite. It creates temporary sites and leaves that runtime unchanged:
+
+```bash
+GRAV_TEST_ROOT=/path/to/grav python3 -m unittest discover -s skills/anysite2grav/tests -v
+```
+
+The checks cover configuration preservation and explicit resets, plain CSS/Tailwind scaffolds, blueprint imports and modular controls, deferred assets, and embedded Form/Cap rendering with cold and warm caches. Project acceptance still includes an Admin edit and browser form submission.
+
+## Publish the overview
+
+The existing `docs/` page is hosted with Cloudflare Workers Static Assets at [anysite2grav.djamil.dev](https://anysite2grav.djamil.dev). The configuration targets the personal Cloudflare account named **Djamil** and the `anysite2grav` Worker.
+
+With Node.js 22.18 or later:
+
+```bash
+npm ci
+npx cf auth login
+npx cf deploy --dry-run
+npm run deploy
+
+# Publish the permanent redirect from the previous hostname
+npm run deploy:legacy
+```
+
+The default deployment publishes `docs/`. Legacy mode publishes only `hosting/legacy/` to the previous `website2grav` Worker, permanently redirecting its custom-domain and workers.dev URLs to the canonical site while retaining paths and query strings. Cloudflare manages the custom domain's DNS and HTTPS certificate. Deployment is manual; pushing to GitHub does not publish the site.
 
 ## License
 

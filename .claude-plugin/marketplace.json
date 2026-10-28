@@ -1,13 +1,13 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "grav-skills",
+  "name": "anysite2grav",
   "description": "Skills for building and migrating Grav CMS sites",
   "owner": {
     "name": "Djamil Legato"
   },
   "plugins": [
     {
-      "name": "website-to-grav",
+      "name": "anysite2grav",
       "description": "Convert any live website into a local Grav 2 site with Admin2, API and MCP.",
       "source": "./",
       "category": "development"

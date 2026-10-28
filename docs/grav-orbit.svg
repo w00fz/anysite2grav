@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 600" fill="none">
+  <defs>
+    <radialGradient id="halo"><stop stop-color="#8428df" stop-opacity=".28"/><stop offset=".62" stop-color="#8428df" stop-opacity=".08"/><stop offset="1" stop-color="#8428df" stop-opacity="0"/></radialGradient>
+    <linearGradient id="ring"><stop stop-color="#8428df" stop-opacity="0"/><stop offset=".3" stop-color="#8428df" stop-opacity=".3"/><stop offset=".52" stop-color="#bc7bff" stop-opacity=".7"/><stop offset=".78" stop-color="#2f9eff" stop-opacity=".3"/><stop offset="1" stop-color="#2f9eff" stop-opacity="0"/></linearGradient>
+    <filter id="glow" x="-50%" y="-100%" width="200%" height="300%"><feGaussianBlur stdDeviation="13"/></filter>
+  </defs>
+  <ellipse cx="720" cy="245" rx="700" ry="330" fill="url(#halo)"/>
+  <g transform="rotate(-12 720 280)">
+    <ellipse cx="720" cy="280" rx="510" ry="138" stroke="url(#ring)" stroke-width="16" filter="url(#glow)"/>
+    <ellipse cx="720" cy="280" rx="510" ry="138" stroke="url(#ring)" stroke-width="1.4"/>
+    <ellipse cx="720" cy="280" rx="555" ry="163" stroke="url(#ring)" stroke-opacity=".22"/>
+    <ellipse cx="720" cy="280" rx="615" ry="194" stroke="url(#ring)" stroke-opacity=".12"/>
+  </g>
+  <g fill="#b68cff">
+    <circle cx="180" cy="124" r="1" opacity=".5"/><circle cx="318" cy="49" r="1" opacity=".4"/>
+    <circle cx="1110" cy="91" r="1.3" opacity=".6"/><circle cx="1284" cy="258" r="1" opacity=".5"/>
+    <circle cx="115" cy="354" r="1.2" opacity=".35"/><circle cx="985" cy="441" r="1" opacity=".4"/>
+    <circle cx="1192" cy="390" r="1" opacity=".25"/><circle cx="520" cy="76" r=".8" opacity=".4"/>
+  </g>
+</svg>

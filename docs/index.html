@@ -3,857 +3,492 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Website → Grav · an agent skill that rebuilds any live site in Grav</title>
-  <meta name="description" content="An agent skill for Claude Code and Codex that turns a live website into a local Grav 2 site: same routes and content, a matching theme, working forms, ported analytics, and Admin2 + API + MCP wired for your agent.">
-  <meta property="og:title" content="Website → Grav">
-  <meta property="og:description" content="Give your agent a URL. Get back a local Grav 2 site with the same pages, a matching theme, working forms and MCP access.">
+  <title>anysite2grav · One URL. Hello, Grav.</title>
+  <meta name="description" content="Give Codex or Claude Code a URL. Rebuild a live website as a local, editable Grav 2 site with matching pages, a standalone theme, working forms and MCP access.">
+  <meta property="og:title" content="anysite2grav · One URL. Hello, Grav.">
+  <meta property="og:description" content="Your website, rebuilt in Grav. An agent skill for matching the routes, content and design — with Admin2, API and MCP ready to keep editing.">
   <meta property="og:type" content="website">
-  <meta name="theme-color" content="#0a0b10">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%238b7cff'/%3E%3Cstop offset='1' stop-color='%233ee0c3'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath d='M18 32h22m-8-9 9 9-9 9' stroke='%230a0b10' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <style>
-    :root {
-      --bg: #0a0b10;
-      --bg-2: #10121a;
-      --panel: #141722;
-      --panel-2: #1a1e2c;
-      --line: rgba(255, 255, 255, 0.08);
-      --line-2: rgba(255, 255, 255, 0.14);
-      --text: #e9ebf3;
-      --muted: #9aa1b5;
-      --dim: #6b7287;
-      --violet: #8b7cff;
-      --teal: #3ee0c3;
-      --amber: #ffc46b;
-      --rose: #ff7a9a;
-      --grad: linear-gradient(120deg, var(--violet), var(--teal));
-      --radius: 16px;
-      --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  <meta property="og:url" content="https://anysite2grav.djamil.dev/">
+  <meta name="theme-color" content="#15151a">
+  <link rel="canonical" href="https://anysite2grav.djamil.dev/">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%238428df'/%3E%3Cpath d='M17 32h28m-11-11 11 11-11 11' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script>
+    try {
+      const savedTheme = localStorage.getItem('anysite2grav-theme') ?? localStorage.getItem('website-to-grav-theme');
+      document.documentElement.dataset.theme = ['system', 'light', 'dark'].includes(savedTheme) ? savedTheme : 'system';
+    } catch {
+      document.documentElement.dataset.theme = 'system';
     }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; scroll-padding-top: 84px; }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
-
-    body {
-      margin: 0;
-      font-family: var(--sans);
-      font-size: 17px;
-      line-height: 1.6;
-      color: var(--text);
-      background:
-        radial-gradient(900px 600px at 8% -10%, rgba(139, 124, 255, 0.22), transparent 60%),
-        radial-gradient(700px 500px at 100% 10%, rgba(62, 224, 195, 0.12), transparent 60%),
-        var(--bg);
-      background-repeat: no-repeat;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    a { color: inherit; }
-    code, pre, kbd { font-family: var(--mono); }
-    :not(pre) > code {
-      font-size: 0.86em;
-      padding: 0.12em 0.4em;
-      border-radius: 6px;
-      background: rgba(139, 124, 255, 0.12);
-      color: #cfc8ff;
-    }
-
-    .wrap { width: min(1160px, 100% - 48px); margin-inline: auto; }
-
-    /* ---------- nav ---------- */
-    .nav {
-      position: sticky; top: 0; z-index: 20;
-      backdrop-filter: saturate(160%) blur(14px);
-      -webkit-backdrop-filter: saturate(160%) blur(14px);
-      background: rgba(10, 11, 16, 0.72);
-      border-bottom: 1px solid var(--line);
-    }
-    .nav .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; text-decoration: none; }
-    .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--grad); display: grid; place-items: center; }
-    .brand-mark svg { width: 16px; height: 16px; }
-    .nav-links { display: flex; gap: 22px; margin-left: auto; }
-    .nav-links a { color: var(--muted); text-decoration: none; font-size: 15px; transition: color 0.2s; }
-    .nav-links a:hover { color: var(--text); }
-    .gh {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 7px 14px; border-radius: 999px;
-      border: 1px solid var(--line-2); text-decoration: none; font-size: 14px; font-weight: 600;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .gh:hover { border-color: var(--violet); background: rgba(139, 124, 255, 0.08); }
-    .gh svg { width: 16px; height: 16px; }
-    @media (max-width: 860px) { .nav-links { display: none; } .gh { margin-left: auto; } }
-
-    /* ---------- hero ---------- */
-    .hero { padding: 88px 0 72px; }
-    .hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }
-    @media (max-width: 980px) { .hero .wrap { grid-template-columns: 1fr; } }
-    .hero .wrap > *, .split > *, .stage > * { min-width: 0; }
-    .eyebrow {
-      display: inline-flex; align-items: center; gap: 10px;
-      font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
-      padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: rgba(255, 255, 255, 0.03);
-    }
-    .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 12px var(--teal); }
-    h1 {
-      font-size: clamp(42px, 6vw, 68px);
-      line-height: 1.02;
-      letter-spacing: -0.035em;
-      margin: 22px 0 20px;
-      font-weight: 800;
-    }
-    .grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .lede { font-size: 20px; color: var(--muted); max-width: 34em; margin: 0 0 32px; }
-    .lede strong { color: var(--text); font-weight: 600; }
-    .cta { display: flex; flex-wrap: wrap; gap: 12px; }
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 13px 22px; border-radius: 12px; font-weight: 650; font-size: 16px; text-decoration: none;
-      transition: transform 0.15s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
-    }
-    .btn-primary { background: var(--grad); color: #0a0b10; box-shadow: 0 10px 30px -10px rgba(139, 124, 255, 0.7); }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 14px 34px -10px rgba(62, 224, 195, 0.6); }
-    .btn-ghost { border: 1px solid var(--line-2); background: rgba(255, 255, 255, 0.03); }
-    .btn-ghost:hover { border-color: var(--teal); }
-    .platforms { margin-top: 36px; font-size: 14px; color: var(--dim); }
-    .platforms span { color: var(--muted); }
-
-    /* terminal */
-    .term {
-      border-radius: 18px;
-      background: linear-gradient(180deg, #121521, #0d0f17);
-      border: 1px solid var(--line-2);
-      box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(139, 124, 255, 0.08), 0 0 80px -20px rgba(139, 124, 255, 0.35);
-      overflow: hidden;
-    }
-    .term-bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-    .term-bar i { width: 11px; height: 11px; border-radius: 50%; background: #2b2f3d; }
-    .term-bar i:nth-child(1) { background: #ff5f57; } .term-bar i:nth-child(2) { background: #febc2e; } .term-bar i:nth-child(3) { background: #28c840; }
-    .term-bar b { margin-left: 10px; font: 500 12px var(--mono); color: var(--dim); }
-    .term-body { padding: 18px 20px 22px; font: 13.5px/1.75 var(--mono); }
-    .term-line { display: flex; gap: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; animation: rise 0.45s ease forwards; }
-    .term-line .k { flex: none; width: 1.1em; text-align: center; }
-    .term-line .m { color: var(--dim); }
-    .prompt { color: var(--text); margin-bottom: 8px; }
-    .prompt .k { color: var(--violet); }
-    .ok .k { color: var(--teal); }
-    .ask .k { color: var(--amber); }
-    .ask { color: #ffe2b5; }
-    .final { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--line-2); color: var(--teal); font-weight: 600; }
-    @media (max-width: 520px) { .term-body { font-size: 12.5px; padding: 14px 16px 18px; } .term-line { white-space: normal; } .term-line .m { display: none; } }
-    @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-
-    /* ---------- sections ---------- */
-    section.block { padding: 88px 0; border-top: 1px solid var(--line); }
-    .kicker { font: 600 13px var(--mono); color: var(--teal); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
-    h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.1; letter-spacing: -0.025em; margin: 0 0 16px; font-weight: 780; }
-    .section-lede { color: var(--muted); font-size: 19px; max-width: 46em; margin: 0 0 48px; }
-    h3 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 8px; }
-
-    /* outcome cards */
-    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-    @media (max-width: 1060px) { .cards { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 620px) { .cards { grid-template-columns: 1fr; } }
-    .card {
-      position: relative; padding: 26px 24px 24px; border-radius: var(--radius);
-      background: linear-gradient(180deg, var(--panel), var(--bg-2));
-      border: 1px solid var(--line);
-      transition: border-color 0.25s, transform 0.25s;
-    }
-    .card:hover { border-color: rgba(139, 124, 255, 0.45); transform: translateY(-2px); }
-    .card .icon {
-      width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 18px;
-      background: rgba(139, 124, 255, 0.12); color: var(--violet);
-    }
-    .card:nth-child(2) .icon { background: rgba(62, 224, 195, 0.12); color: var(--teal); }
-    .card:nth-child(3) .icon { background: rgba(255, 196, 107, 0.12); color: var(--amber); }
-    .card:nth-child(4) .icon { background: rgba(255, 122, 154, 0.12); color: var(--rose); }
-    .card .icon svg { width: 22px; height: 22px; }
-    .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
-
-    .also { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; }
-    .pill { font-size: 14px; color: var(--muted); padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); }
-    .pill b { color: var(--text); font-weight: 600; }
-
-    /* stages */
-    .stages { position: relative; display: grid; gap: 16px; }
-    .stage {
-      display: grid; grid-template-columns: 220px 1fr; gap: 28px;
-      padding: 28px; border-radius: var(--radius);
-      background: var(--panel); border: 1px solid var(--line);
-    }
-    @media (max-width: 820px) { .stage { grid-template-columns: 1fr; gap: 14px; } }
-    .stage-head .num { font: 600 13px var(--mono); color: var(--dim); }
-    .stage-head h3 { font-size: 24px; margin: 6px 0 10px; }
-    .stage-head .steps { display: flex; flex-wrap: wrap; gap: 6px; }
-    .stage-head .steps span {
-      font: 600 12px var(--mono); padding: 3px 8px; border-radius: 6px;
-      background: rgba(255, 255, 255, 0.05); color: var(--muted);
-    }
-    .stage:nth-child(1) h3 { color: #b4aaff; }
-    .stage:nth-child(2) h3 { color: #8fd3ff; }
-    .stage:nth-child(3) h3 { color: var(--amber); }
-    .stage:nth-child(4) h3 { color: #7ff0d9; }
-    .stage:nth-child(5) h3 { color: var(--rose); }
-    .stage:nth-child(6) h3 { color: #d7dbe8; }
-    .stage ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-    .stage li { position: relative; padding-left: 22px; color: var(--muted); font-size: 16px; }
-    .stage li::before { content: ""; position: absolute; left: 2px; top: 0.62em; width: 8px; height: 8px; border-radius: 2px; background: var(--line-2); }
-    .stage li strong { color: var(--text); font-weight: 600; }
-    .check {
-      margin-top: 16px; padding: 10px 14px; border-radius: 10px; font-size: 14.5px;
-      background: rgba(62, 224, 195, 0.07); border: 1px solid rgba(62, 224, 195, 0.18); color: #bff5ea;
-    }
-    .check b { color: var(--teal); }
-
-    /* structure */
-    .structure { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    @media (max-width: 860px) { .structure { grid-template-columns: 1fr; } }
-    .structure > * { min-width: 0; }
-    .shape { padding: 26px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 18px; }
-    .shape-head { display: flex; align-items: center; gap: 12px; }
-    .shape-head h3 { margin: 0; font-size: 22px; }
-    .badge { font: 600 12.5px var(--mono); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); }
-    .badge.rec { border-color: rgba(62, 224, 195, 0.5); color: #c9fbf0; background: rgba(62, 224, 195, 0.08); }
-    .stack { display: grid; gap: 6px; }
-    .stack i { display: block; height: 18px; border-radius: 6px; background: rgba(139, 124, 255, 0.18); border: 1px solid rgba(139, 124, 255, 0.3); }
-    .stack i.s1 { height: 34px; background: linear-gradient(120deg, rgba(139, 124, 255, 0.45), rgba(62, 224, 195, 0.35)); }
-    .stack i.s3 { background: rgba(62, 224, 195, 0.14); border-color: rgba(62, 224, 195, 0.3); }
-    .stack i.s4 { background: rgba(255, 196, 107, 0.14); border-color: rgba(255, 196, 107, 0.3); }
-    .stack i.s5 { background: rgba(255, 122, 154, 0.14); border-color: rgba(255, 122, 154, 0.3); }
-    .tree.small { padding: 16px 18px; font-size: 13px; line-height: 1.75; }
-    .shape p { margin: 0; color: var(--muted); font-size: 15.5px; }
-    .kinds { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
-    .kind { font-size: 14px; color: var(--muted); padding: 7px 14px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); }
-    .kind b { font: 600 13px var(--mono); color: #cfc8ff; margin-right: 6px; }
-
-    /* decisions */
-    .decisions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-    @media (max-width: 1000px) { .decisions { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 640px) { .decisions { grid-template-columns: 1fr; } }
-    .q { padding: 24px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); display: flex; flex-direction: column; }
-    .q .when { font: 600 12px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
-    .q h3 { margin: 8px 0 14px; }
-    .opts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-    .opt { font-size: 13.5px; padding: 5px 11px; border-radius: 8px; border: 1px solid var(--line-2); color: var(--muted); }
-    .opt.rec { border-color: rgba(62, 224, 195, 0.5); color: #c9fbf0; background: rgba(62, 224, 195, 0.08); }
-    .q p { margin: auto 0 0; font-size: 14.5px; color: var(--dim); }
-
-    /* split: tree + text */
-    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
-    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
-    .tree {
-      margin: 0; padding: 24px 26px; border-radius: var(--radius);
-      background: #0d0f17; border: 1px solid var(--line-2);
-      font: 14px/1.85 var(--mono); color: var(--muted); overflow-x: auto;
-    }
-    .tree .d { color: #b4aaff; font-weight: 600; }
-    .tree .f { color: var(--text); }
-    .tree .c { color: var(--dim); }
-    .facts { display: grid; gap: 14px; }
-    .fact { display: flex; gap: 16px; padding: 18px 20px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
-    .fact .n { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font: 700 14px var(--mono); background: rgba(139, 124, 255, 0.14); color: var(--violet); }
-    .fact p { margin: 0; color: var(--muted); font-size: 15.5px; }
-    .fact p strong { color: var(--text); }
-
-    /* install tabs */
-    .tabs { border-radius: var(--radius); border: 1px solid var(--line-2); background: #0d0f17; overflow: hidden; }
-    .tablist { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); }
-    .tab {
-      appearance: none; border: 0; cursor: pointer; font: 600 14.5px var(--sans); color: var(--muted);
-      padding: 9px 16px; border-radius: 10px; background: transparent; transition: background 0.2s, color 0.2s;
-    }
-    .tab:hover { color: var(--text); }
-    .tab[aria-selected="true"] { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-2); }
-    .panel { padding: 22px 24px 26px; }
-    .panel[hidden] { display: none; }
-    .panel p { margin: 0 0 14px; color: var(--muted); font-size: 15.5px; }
-    .panel p:last-child { margin-bottom: 0; }
-    .code { position: relative; margin: 0 0 16px; }
-    .code pre {
-      margin: 0; padding: 16px 56px 16px 18px; border-radius: 12px; overflow-x: auto;
-      background: var(--panel); border: 1px solid var(--line); font-size: 14px; line-height: 1.7; color: #dfe3f0;
-    }
-    .code pre .c { color: var(--dim); }
-    .copy {
-      position: absolute; top: 10px; right: 10px; cursor: pointer;
-      border: 1px solid var(--line-2); background: var(--panel-2); color: var(--muted);
-      font: 600 12px var(--sans); padding: 5px 9px; border-radius: 8px; transition: color 0.2s, border-color 0.2s;
-    }
-    .copy:hover { color: var(--text); border-color: var(--violet); }
-    .note { font-size: 14.5px; color: var(--dim); margin-top: 18px; }
-    .note b { color: var(--muted); }
-
-    /* prompts */
-    .prompts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    @media (max-width: 900px) { .prompts { grid-template-columns: 1fr; } }
-    .prompt-card {
-      padding: 22px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line);
-      font-size: 16px; color: var(--text); position: relative;
-    }
-    .prompt-card::before { content: "“"; position: absolute; top: 4px; right: 16px; font: 700 54px/1 Georgia, serif; color: rgba(139, 124, 255, 0.25); }
-    .prompt-card small { display: block; margin-top: 12px; color: var(--dim); font-size: 13.5px; }
-
-    /* scripts grid */
-    .scripts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-    @media (max-width: 900px) { .scripts { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 560px) { .scripts { grid-template-columns: 1fr; } }
-    .script { padding: 20px 22px; background: var(--bg-2); }
-    .script code { font-size: 14px; color: #cfc8ff; background: none; padding: 0; }
-    .script p { margin: 6px 0 0; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
-
-    /* guardrails */
-    .rules { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 32px; margin: 0; padding: 0; list-style: none; }
-    @media (max-width: 760px) { .rules { grid-template-columns: 1fr; } }
-    .rules li { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 15.5px; }
-    .rules li svg { flex: none; width: 20px; height: 20px; color: var(--teal); margin-top: 3px; }
-    .rules li strong { color: var(--text); }
-
-    /* stats */
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 26px; }
-    @media (max-width: 900px) { .stats { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 520px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .stat { padding: 20px 18px; } .stat .v { font-size: 30px; } }
-    .stat { padding: 26px 24px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); }
-    .stat .v { font-size: 40px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-    .stat .l { margin-top: 10px; color: var(--muted); font-size: 14.5px; }
-    .timing { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    @media (max-width: 760px) { .timing { grid-template-columns: 1fr; } }
-    .timing .t { padding: 22px 24px; border-radius: var(--radius); border: 1px dashed var(--line-2); }
-    .timing .t h3 { display: flex; justify-content: space-between; gap: 12px; }
-    .timing .t h3 span { font: 600 14px var(--mono); color: var(--teal); }
-    .timing .t p { margin: 0; color: var(--muted); font-size: 15.5px; }
-
-    /* requirements */
-    .reqs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-    @media (max-width: 820px) { .reqs { grid-template-columns: 1fr; } }
-    .req { padding: 22px 24px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); }
-    .req .tag { font: 700 13px var(--mono); color: var(--violet); }
-    .req h3 { margin: 6px 0 8px; }
-    .req p { margin: 0; color: var(--muted); font-size: 15px; }
-
-    /* closing */
-    .closing { padding: 96px 0; text-align: center; border-top: 1px solid var(--line); background: radial-gradient(600px 300px at 50% 100%, rgba(139, 124, 255, 0.16), transparent 70%); }
-    .closing h2 { margin-bottom: 14px; }
-    .closing p { color: var(--muted); margin: 0 auto 30px; max-width: 34em; font-size: 19px; }
-    .closing .cta { justify-content: center; }
-    footer { padding: 28px 0 40px; color: var(--dim); font-size: 14px; border-top: 1px solid var(--line); }
-    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
-    footer a { color: var(--muted); }
-  </style>
+  </script>
+  <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/google-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="site.css">
 </head>
 <body>
-
-<nav class="nav" aria-label="Main">
+<a class="skip" href="#main">Skip to content</a>
+<svg class="icon-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+  <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"/></symbol>
+  <symbol id="icon-system" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol>
+  <symbol id="icon-external" viewBox="0 0 24 24"><path d="M8 5h11v11M19 5 5 19"/></symbol>
+  <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+  <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></symbol>
+  <symbol id="icon-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-14-2 18"/></symbol>
+  <symbol id="icon-route" viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="5" rx="1"/><rect x="2" y="16" width="7" height="5" rx="1"/><rect x="15" y="16" width="7" height="5" rx="1"/><path d="M12 8v4M5.5 16v-4h13v4"/></symbol>
+  <symbol id="icon-theme" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12m-2-15h.01M10 6h.01"/></symbol>
+  <symbol id="icon-form" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6m-6 4h6m-6 4h3"/></symbol>
+  <symbol id="icon-connect" viewBox="0 0 24 24"><path d="m8 12 3-3m2 6 3-3M9 6l1-1a5 5 0 0 1 7 7l-1 1M8 11l-1 1a5 5 0 0 0 7 7l1-1"/></symbol>
+  <symbol id="icon-sliders" viewBox="0 0 24 24"><path d="M4 7h8m5 0h3M4 17h3m5 0h8"/><circle cx="14.5" cy="7" r="2.5"/><circle cx="9.5" cy="17" r="2.5"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="icon-loop" viewBox="0 0 24 24"><path d="M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5M4 16a8 8 0 0 0 14 3l3-3m0 5v-5h-5"/></symbol>
+  <symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4"/></symbol>
+  <symbol id="icon-edit" viewBox="0 0 24 24"><path d="m15 5 4 4M5 19l4-1L20 7a2.8 2.8 0 0 0-4-4L5 14l-1 6 5-2"/></symbol>
+</svg>
+<nav class="nav" aria-label="Main navigation">
   <div class="wrap">
-    <a class="brand" href="#top">
-      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#0a0b10" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h12m-5-5 5 5-5 5"/></svg></span>
-      website-to-grav
-    </a>
-    <div class="nav-links">
-      <a href="#what">What you get</a>
-      <a href="#how">How it works</a>
-      <a href="#structure">Page structure</a>
-      <a href="#decisions">Decisions</a>
-      <a href="#install">Install</a>
-      <a href="#scripts">Under the hood</a>
+    <a class="brand" href="#top"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></span><span>anysite<span class="accent">2</span>grav</span></a>
+    <div class="nav-links"><a href="#how">The workflow</a><a href="#what">What you get</a><a href="#efficiency">Scripts &amp; SEO</a></div>
+    <button class="theme-toggle" type="button" id="theme-toggle" aria-label="Color theme: system. Switch to light mode." title="Theme: System"><svg class="icon" aria-hidden="true"><use id="theme-icon" href="#icon-system"/></svg><span id="theme-label">System</span></button>
+    <div class="nav-actions">
+      <a class="github-link" href="https://github.com/w00fz/anysite2grav" aria-label="anysite2grav on GitHub" title="View on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .75a11.25 11.25 0 0 0-3.56 21.92c.56.1.77-.24.77-.54v-2.1c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.73 1.16 1.73 1.16 1 1.72 2.63 1.22 3.27.94.1-.73.4-1.22.72-1.5-2.5-.28-5.13-1.25-5.13-5.57 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .94-.3 3.1 1.15a10.8 10.8 0 0 1 5.64 0c2.16-1.46 3.1-1.15 3.1-1.15.62 1.55.23 2.7.11 2.98.73.79 1.16 1.79 1.16 3.02 0 4.33-2.64 5.28-5.15 5.56.4.35.76 1.04.76 2.1v3.08c0 .3.2.65.78.54A11.25 11.25 0 0 0 12 .75Z"/></svg></a>
+      <a class="button button-dark" href="#install"><span>Install <span class="install-long">the skill</span></span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a>
     </div>
-    <a class="gh" href="https://github.com/w00fz/grav-skills">
-      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-      GitHub
-    </a>
   </div>
 </nav>
-
-<header class="hero" id="top">
-  <div class="wrap">
-    <div>
-      <span class="eyebrow"><span class="dot"></span>Agent skill · Claude Code · Codex</span>
-      <h1>Turn any live website into a <span class="grad-text">Grav site</span>.</h1>
-      <p class="lede">Give your agent a URL. It comes back with a local <strong>Grav 2</strong> site with the same pages and URLs, a theme that looks like the original and forms that work. <strong>Admin2, the API and MCP</strong> are already connected, so your agent can keep editing.</p>
-      <div class="cta">
-        <a class="btn btn-primary" href="#install">Get started
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
-        </a>
-        <a class="btn btn-ghost" href="#how">See how it works</a>
-      </div>
-      <p class="platforms">Works on sites built with <span>Webflow · WordPress · Squarespace · Wix · Framer · hand-written HTML</span></p>
-    </div>
-
-    <div class="term" role="img" aria-label="Example run: the agent installs Grav, connects MCP, discovers 86 routes, asks a few questions, builds pages, modules, theme and forms, and reaches 86 of 86 routes passing.">
-      <div class="term-bar"><i></i><i></i><i></i><b>claude · ~/Sites/acme-grav</b></div>
-      <div class="term-body">
-        <div class="term-line prompt" style="animation-delay:.1s"><span class="k">›</span>Convert https://acme.com to Grav</div>
-        <div class="term-line ok" style="animation-delay:.5s"><span class="k">✓</span>Grav 2 + Admin2 installed <span class="m">· :8000</span></div>
-        <div class="term-line ok" style="animation-delay:.8s"><span class="k">✓</span>API key + MCP connected <span class="m">· 81 tools</span></div>
-        <div class="term-line ok" style="animation-delay:1.1s"><span class="k">✓</span>86 routes found <span class="m">· 2 languages · PDFs · redirects</span></div>
-        <div class="term-line ok" style="animation-delay:1.4s"><span class="k">✓</span>Audit <span class="m">· GTM, GA4 · 6 forms · embeds</span></div>
-        <div class="term-line ask" style="animation-delay:1.8s"><span class="k">?</span>Theme name · Tailwind · languages · forms · analytics</div>
-        <div class="term-line ok" style="animation-delay:2.3s"><span class="k">✓</span>86 pages built <span class="m">· 23 modular · media deduped</span></div>
-        <div class="term-line ok" style="animation-delay:2.6s"><span class="k">✓</span>Theme from source styles <span class="m">· Tailwind 4</span></div>
-        <div class="term-line ok" style="animation-delay:2.9s"><span class="k">✓</span>6 forms converted <span class="m">· inline submit · Cap</span></div>
-        <div class="term-line ok" style="animation-delay:3.2s"><span class="k">✓</span>Fidelity loop <span class="m">· 1440px + 390px side by side</span></div>
-        <div class="term-line final" style="animation-delay:3.7s"><span class="k">●</span>Parity 86/86 · text coverage 100%</div>
-      </div>
-    </div>
-  </div>
-</header>
-
-<section class="block" id="what">
-  <div class="wrap">
-    <div class="kicker">What you get</div>
-    <h2>Your site in Grav, ready for your agent</h2>
-    <p class="section-lede">Not a static scrape. You get a real Grav site that you and your agent can edit: content in pages and frontmatter, design in an editable theme, and every setting in Admin.</p>
-
-    <div class="cards">
-      <article class="card">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h12"/></svg></div>
-        <h3>Same URLs, same content</h3>
-        <p>One Grav page per source URL, with the exact title, meta and Open Graph tags. Long pages become modular pages with one editable module per section; short ones stay single pages. Markdown for articles, deduplicated media, redirects kept.</p>
-      </article>
-      <article class="card">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18M3 12h9"/></svg></div>
-        <h3>A theme that looks the same</h3>
-        <p>A standalone theme built from the source's measured styles and its own CSS rules. Header, menus, CTAs and footer are editable in Admin. Tailwind 4 if you want it.</p>
-      </article>
-      <article class="card">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
-        <h3>Forms that actually work</h3>
-        <p>Every form, including the ones in popups, becomes a Grav form that submits in place. Grav's built-in Cap CAPTCHA needs no keys. Submissions are saved, emailed or sent to a webhook, as you choose.</p>
-      </article>
-      <article class="card">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9 4 12l4 3M16 9l4 3-4 3M13.5 5l-3 14"/></svg></div>
-        <h3>Your agent can edit it from the start</h3>
-        <p>Admin2, the REST API and the Grav MCP server are set up before any content work. The MCP launcher reads the key itself, so no secret ends up in your agent's config.</p>
-      </article>
-    </div>
-
-    <div class="also">
-      <span class="pill"><b>Analytics</b> ported, firing on production hosts only</span>
-      <span class="pill"><b>Local and preview copies</b> kept out of search with noindex</span>
-      <span class="pill"><b>Native multilang</b> or per-language trees</span>
-      <span class="pill"><b>PHP server</b> or <b>Docker</b> with Mailpit</span>
-      <span class="pill"><b>DESIGN.md</b> recording every styling decision</span>
-    </div>
-  </div>
-</section>
-
-<section class="block" id="how">
-  <div class="wrap">
-    <div class="kicker">How it works</div>
-    <h2>Thirteen checkpoints in six stages</h2>
-    <p class="section-lede">The agent works through a fixed checklist. Each checkpoint has a check that must pass before the next starts, and every script is safe to rerun, so a better extraction rule can rebuild the site without losing your hand-made changes.</p>
-
-    <div class="stages">
-      <div class="stage">
-        <div class="stage-head">
-          <div class="num">STAGE 01</div>
-          <h3>Set up</h3>
-          <div class="steps"><span>1 Intake</span><span>2 Install</span><span>3 API + MCP</span></div>
-        </div>
-        <div>
-          <ul>
-            <li>Confirms the URL, project folder, runtime (PHP's built-in server, Docker or your own stack) and which agents to connect.</li>
-            <li>Installs the <strong>latest Grav 2 with Admin2</strong> in a new folder and starts it.</li>
-            <li>Creates an admin account and an <strong>API key</strong>, writes an <strong>MCP launcher</strong> and <code>.mcp.json</code>, and registers it with Claude Code, Codex or Cursor. Credentials stay in <code>.local/</code> with 0600 permissions.</li>
-          </ul>
-          <div class="check"><b>Check:</b> you can sign in to <code>/admin</code> and your agent can call <code>list_pages</code>.</div>
+<main id="main">
+  <header class="hero" id="top">
+    <div class="wrap">
+      <div class="hero-copy">
+        <p class="eyebrow">One URL. Hello, Grav.</p>
+        <h1><span class="hero-title-intro">An agent skill for</span> <span class="hero-title-main">website migrations</span></h1>
+        <div class="hero-deck">
+          <p class="lede">Give <strong>Codex or Claude Code</strong> a website. Get a local, editable <strong>Grav 2</strong> site with the same routes and content, a matching theme, and forms that work.</p>
         </div>
       </div>
+      <div class="workbench-heading"><span>Install the skill</span><span>Try the conversation</span></div>
+      <div class="hero-grid">
+          <section class="install" id="install" aria-labelledby="install-title">
+            <div class="install-heading"><svg class="icon" aria-hidden="true"><use href="#icon-code"/></svg><h2 id="install-title">Add it to your agent</h2><span>Agent Skills format</span></div>
+            <div class="tablist" role="tablist" aria-label="Install options">
+              <button class="tab" type="button" role="tab" id="t-codex" data-install-agent="codex" aria-controls="p-codex" aria-selected="true">Codex</button>
+              <button class="tab" type="button" role="tab" id="t-claude" data-install-agent="claude" aria-controls="p-claude" aria-selected="false" tabindex="-1">Claude Code</button>
+              <button class="tab" type="button" role="tab" id="t-other" data-install-agent="other" aria-controls="p-other" aria-selected="false" tabindex="-1">Other</button>
+            </div>
+            <div class="install-panels">
+            <div class="panel" role="tabpanel" id="p-codex" aria-labelledby="t-codex" tabindex="0">
+              <p>Paste this prompt into Codex:</p>
+              <div class="code"><pre id="code-codex">$skill-installer Install anysite2grav from https://github.com/w00fz/anysite2grav/tree/main/skills/anysite2grav</pre><button class="copy" type="button" data-copy="code-codex" aria-label="Copy Codex installer prompt" title="Copy prompt"><svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg></button></div>
+              <p>Then use <code>$anysite2grav</code>. <a href="https://learn.chatgpt.com/docs/build-skills#install-curated-skills-for-local-use">Official install guidance</a>.</p>
+              <details class="install-alternative" id="codex-manual"><summary>Manual installation / development</summary>
+                <p>Clone a working copy, then link the skill:</p>
+                <div class="code"><pre id="code-codex-manual">git clone https://github.com/w00fz/anysite2grav.git ~/Projects/anysite2grav
+mkdir -p ~/.agents/skills
+ln -s ~/Projects/anysite2grav/skills/anysite2grav ~/.agents/skills/anysite2grav</pre><button class="copy" type="button" data-copy="code-codex-manual" aria-label="Copy manual Codex installation commands" title="Copy commands"><svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg></button></div>
+                <p>Update this working copy with <code>git pull</code>.</p>
+              </details>
+            </div>
+            <div class="panel" role="tabpanel" id="p-claude" aria-labelledby="t-claude" tabindex="0" hidden inert>
+              <p>Run these inside Claude Code:</p>
+              <div class="code"><pre id="code-plugin">/plugin marketplace add w00fz/anysite2grav
+/plugin install anysite2grav@anysite2grav</pre><button class="copy" type="button" data-copy="code-plugin" aria-label="Copy Claude Code plugin installation commands" title="Copy commands"><svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg></button></div>
+              <p>Update with <code>/plugin marketplace update anysite2grav</code>.</p>
+              <details class="install-alternative" id="claude-folder"><summary>Use a skill folder instead</summary>
+                <div class="code"><pre id="code-claude">git clone https://github.com/w00fz/anysite2grav.git ~/Projects/anysite2grav
+mkdir -p ~/.claude/skills
+ln -s ~/Projects/anysite2grav/skills/anysite2grav ~/.claude/skills/anysite2grav</pre><button class="copy" type="button" data-copy="code-claude" aria-label="Copy Claude Code skill folder installation commands" title="Copy commands"><svg class="icon" aria-hidden="true"><use href="#icon-copy"/></svg></button></div>
+                <p>Ask Claude to convert a site to Grav. Update with <code>git pull</code>.</p>
+              </details>
+            </div>
+            <div class="panel" role="tabpanel" id="p-other" aria-labelledby="t-other" tabindex="0" hidden inert>
+              <p>Load <code>skills/anysite2grav/</code> in any agent that supports <a href="https://agentskills.io">Agent Skills</a>. Or point your agent at its <code>SKILL.md</code> for the workflow, scripts and references.</p>
+            </div>
+            </div>
+            <p class="access">The repository is currently private. Installation needs GitHub read access to <a href="https://github.com/w00fz/anysite2grav">w00fz/anysite2grav</a>.</p>
+            <span class="sr-only" id="copy-status" role="status"></span>
+          </section>
+        <figure class="agent-example" id="use" aria-label="Example conversation in Codex or Claude Code">
+          <div class="example-top">
+            <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div><span>Conversation</span>
+            <div class="agent-switch" role="group" aria-label="Example agent"><button type="button" data-agent="codex" aria-pressed="true">Codex</button><button type="button" data-agent="claude" aria-pressed="false">Claude Code</button><button type="button" data-agent="other" aria-pressed="false">Other</button></div>
+          </div>
+          <div class="conversation">
+            <p class="example-label">Choose a starting point</p>
+            <div class="scenario-options" role="group" aria-label="Example prompt">
+              <button type="button" data-scenario="simple" aria-pressed="true">Just a URL</button><button type="button" data-scenario="design" aria-pressed="false">+ design choices</button><button type="button" data-scenario="forms" aria-pressed="false">+ forms &amp; analytics</button>
+            </div>
+            <div class="conversation-thread">
+              <div class="chat-message chat-message--user">
+                <p class="message-label"><span class="avatar" aria-hidden="true">Y</span>You</p>
+                <div class="user-message"><p id="example-prompt" aria-live="polite"><code>$anysite2grav</code> Convert <code>https://example.com</code> to Grav.</p><p id="example-prompt-size" aria-hidden="true" inert><code>$anysite2grav</code> Convert <code>https://example.com</code> to Grav.</p></div>
+              </div>
+              <div class="chat-message chat-message--assistant">
+                <p class="message-label"><span class="avatar agent" aria-hidden="true"><svg class="icon"><use href="#icon-code"/></svg></span><span id="example-agent">Codex</span></p>
+                <div class="agent-message"><p>I’ll map the routes, content and design, then rebuild them in Grav.</p>
+                  <div class="question"><p id="example-question">How would you like to style the theme?</p><div class="answer-options" id="example-answers" role="group" aria-labelledby="example-question"></div></div>
+                </div>
+              </div>
+              <div class="chat-message chat-message--user chat-message--reply">
+                <p class="message-label"><span class="avatar" aria-hidden="true">Y</span>You</p>
+                <div class="user-message"><p id="example-reply" aria-live="polite">Use Tailwind 4.</p></div>
+              </div>
+              <div class="chat-message chat-message--assistant">
+                <p class="message-label"><span class="avatar agent" aria-hidden="true"><svg class="icon"><use href="#icon-code"/></svg></span><span data-agent-label>Codex</span></p>
+                <div class="agent-message"><p id="example-next" aria-live="polite">I’ll keep the theme standalone, preserve your URLs, and start with the route crawl.</p></div>
+              </div>
+            </div>
+          </div>
+        </figure>
+      </div>
+      <div class="platforms"><span>Bring your site from</span><strong>Webflow</strong><strong>WordPress</strong><strong>Squarespace</strong><strong>Wix</strong><strong>Framer</strong><strong>Hand-built HTML</strong></div>
+    </div>
+  </header>
 
-      <div class="stage">
-        <div class="stage-head">
-          <div class="num">STAGE 02</div>
-          <h3>Discover</h3>
-          <div class="steps"><span>4 Routes</span><span>5 Audit</span></div>
+  <section class="section workflow" id="how" aria-labelledby="workflow-title">
+    <div class="wrap">
+      <div class="section-heading"><p class="eyebrow">From URL to handoff</p><h2 id="workflow-title">From URL to an editable Grav site.</h2><p>Your agent follows 13 checkpoints. You review the important choices; scripts handle the repetitive work.</p></div>
+      <ol class="flow">
+        <li><span class="step-number">01 / CONNECT</span><h3>Set up</h3><p>Install Grav + Admin2. Connect the API and MCP before building.</p><div class="step-visual step-links" role="img" aria-label="Grav connects to its API, then to your agent through MCP"><span>Grav</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><span>API</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><span>MCP</span></div></li>
+        <li><span class="step-number">02 / EXPLORE</span><h3>Discover</h3><p>Crawl routes. Audit content, forms, trackers, fonts and languages.</p><div class="step-visual step-inventory" role="img" aria-label="One source website is inventoried as routes, media and forms"><div class="inventory-url">example.com</div><div><span>Routes</span><span>Media</span><span>Forms</span></div></div></li>
+        <li><span class="step-number">03 / YOU CHOOSE</span><h3>Decide</h3><p>Choose styling, form delivery and analytics with suggested defaults.</p><div class="step-visual step-controls" role="img" aria-label="You choose theme, forms and analytics settings"><div><span>Theme</span><i></i></div><div><span>Forms</span><i></i></div><div><span>Analytics</span><i></i></div></div></li>
+        <li><span class="step-number">04 / MAKE IT REAL</span><h3>Rebuild</h3><p>Create pages, import media, match the theme and wire up forms.</p><div class="step-visual step-files" role="img" aria-label="The rebuild produces Grav pages, a standalone theme and page media"><div><svg class="icon" aria-hidden="true"><use href="#icon-form"/></svg><span>user/pages/</span></div><div><svg class="icon" aria-hidden="true"><use href="#icon-code"/></svg><span>user/themes/</span></div><div><svg class="icon" aria-hidden="true"><use href="#icon-theme"/></svg><span>page media</span></div></div></li>
+        <li><span class="step-number">05 / REFINE</span><h3>Compare</h3><p>Check every route. Compare desktop and mobile screenshots.</p><div class="step-visual step-compare" role="img" aria-label="The source website and Grav copy are compared side by side"><div><b>Source</b><i></i><span></span></div><svg class="icon" aria-hidden="true"><use href="#icon-loop"/></svg><div><b>Grav</b><i></i><span></span></div></div></li>
+        <li><span class="step-number">06 / KEEP CREATING</span><h3>Hand over</h3><p>Get an editable site, verification reports and a connected agent.</p><div class="step-visual step-handoff" role="img" aria-label="You and your agent can keep editing the Grav site"><div><span>You</span><span>Agent</span></div><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><span><svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>Edit in Grav</span></div></li>
+      </ol>
+      <a class="text-link" href="#checkpoints">Explore all 13 checkpoints <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+    </div>
+  </section>
+
+  <section class="section" id="what" aria-labelledby="outcome-title">
+    <div class="wrap">
+      <div class="section-heading"><p class="eyebrow">The result</p><h2 id="outcome-title">Everything that makes your site yours.</h2><p>Your content becomes a real Grav site: pages you can edit, a theme you control, and an agent that can keep working.</p></div>
+      <div class="features">
+        <article class="feature"><div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#icon-route"/></svg></div><h3>Your pages &amp; URLs</h3><p>Content, titles, meta and Open Graph tags. Images and PDFs, deduplicated. Languages and redirects preserved.</p><div class="feature-visual route-map" role="img" aria-label="The public routes /about and /contact stay the same in Grav"><div class="route-map-head"><span>Your site</span><span></span><span>In Grav</span></div><div><code>/about</code><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><code>/about</code></div><div><code>/contact</code><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><code>/contact</code></div></div></article>
+        <article class="feature"><div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#icon-theme"/></svg></div><h3>Your look &amp; feel</h3><p>A standalone theme from measured source styles. Header, menus, CTAs and footer editable in Admin. Tailwind or plain CSS.</p><div class="feature-visual style-map" role="img" aria-label="Source colors, typography and spacing become reusable theme tokens"><div class="style-sample"><span class="sample-type">Aa</span><div class="sample-swatches"><i></i><i></i><i></i></div><div class="sample-spacing"><i></i><i></i><i></i></div></div><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><div class="style-output"><svg class="icon" aria-hidden="true"><use href="#icon-code"/></svg><strong>Theme tokens</strong><span>Color · type · spacing</span></div></div></article>
+        <article class="feature"><div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#icon-form"/></svg></div><h3>Forms with a destination</h3><p>Inline or popup forms that save, email or send to a webhook. Choose your CAPTCHA or keep the original embed.</p><div class="feature-visual delivery-map" role="img" aria-label="A Grav form sends submissions to your chosen destination: saved files, email or a webhook"><div class="form-source"><svg class="icon" aria-hidden="true"><use href="#icon-form"/></svg><strong>Grav Form</strong><div class="form-field-lines"><i></i><i></i></div></div><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><div class="delivery-options"><span class="visual-kicker">Your choice</span><div><svg class="icon" aria-hidden="true"><use href="#icon-form"/></svg>Save to files</div><div><svg class="icon" aria-hidden="true"><use href="#icon-connect"/></svg>Send email</div><div><svg class="icon" aria-hidden="true"><use href="#icon-code"/></svg>Call a webhook</div></div></div></article>
+        <article class="feature"><div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#icon-connect"/></svg></div><h3>An agent with the keys</h3><p>Admin2, REST API and MCP connected from the start. Keep editing through Admin or your agent, with secrets stored locally.</p><div class="feature-visual access-map" role="img" aria-label="Admin and your agent through MCP both use the REST API to edit the same Grav pages"><div class="access-inputs"><span><svg class="icon" aria-hidden="true"><use href="#icon-theme"/></svg>Admin 2</span><span><svg class="icon" aria-hidden="true"><use href="#icon-spark"/></svg>Agent + MCP</span></div><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><div class="access-api"><svg class="icon" aria-hidden="true"><use href="#icon-connect"/></svg><strong>REST API</strong></div><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><div class="access-site"><svg class="icon" aria-hidden="true"><use href="#icon-form"/></svg><strong>Same pages</strong></div></div></article>
+      </div>
+      <ul class="capabilities" role="list" aria-label="Migration capabilities">
+        <li class="capability"><h3>Code-mode friendly scripts</h3><p>Crawl, build and check in batches. Compact reports keep bulk data out of your agent’s context.</p></li>
+        <li class="capability"><h3>SEO metadata &amp; redirects</h3><p>Carry page titles, descriptions, social tags and redirects into Grav.</p></li>
+        <li class="capability"><h3>Production-only analytics</h3><p>Load approved trackers on your chosen live hosts. Keep local and preview traffic out.</p></li>
+        <li class="capability"><h3>Noindex for local &amp; preview</h3><p>Mark non-production copies as noindex so search engines know not to index them.</p></li>
+        <li class="capability"><h3>Native multilang or language trees</h3><p>Use Grav’s translation model or keep a separate page tree for each language.</p></li>
+        <li class="capability"><h3>PHP server or Docker</h3><p>Start with PHP’s built-in server, or use Docker for a repeatable local setup.</p></li>
+        <li class="capability"><h3>Design decisions in <code>DESIGN.md</code></h3><p>Keep styling choices documented so the next edit starts with context.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section benefits" aria-labelledby="benefits-title">
+    <div class="wrap">
+      <div class="section-heading"><p class="eyebrow">Less busywork. More of your site.</p><h2 id="benefits-title">Built for agents. Ready for the web.</h2><p>Reusable scripts keep bulk work out of the conversation. SEO details remain part of the migration, from the first route to the final check.</p></div>
+      <div class="benefit-grid">
+        <article class="benefit-card" id="efficiency" aria-labelledby="efficiency-title">
+          <p class="eyebrow">Code-mode efficiency</p><h3 id="efficiency-title">Let code do the heavy lifting.</h3>
+          <p>One script call can crawl or rebuild many pages. HTML, media and extracted content stay in local files; compact reports tell your agent what to inspect next. That keeps repetitive work in code and bulk data out of the context window.</p>
+          <div class="batch-map" role="img" aria-label="Scripts work through many source pages and return a compact report for your agent">
+            <div class="batch-pages"><strong>Pages</strong><span>/</span><span>/about</span><span>/contact</span></div><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg>
+            <div class="batch-scripts"><svg class="icon" aria-hidden="true"><use href="#icon-code"/></svg><strong>Scripts</strong><span>Crawl · build · check</span></div><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg>
+            <div class="batch-report"><strong>Report</strong><div><i></i>Routes</div><div><i></i>Content</div><div><i></i>Forms</div></div>
+            <div class="batch-review"><svg class="icon" aria-hidden="true"><use href="#icon-loop"/></svg>Your agent reviews the findings</div>
+          </div>
+          <div class="artifact-example"><span>crawl_site.py</span> → routes.json<br><span>build_pages.py</span> → Grav pages<br><span>verify_parity.py</span> → parity-report.md</div>
+          <a class="text-link" href="#scripts">Explore the scripts <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+        </article>
+        <article class="benefit-card" id="seo" aria-labelledby="seo-title">
+          <p class="eyebrow">SEO comes with you</p><h3 id="seo-title">Keep the details that help people find you.</h3>
+          <p>Preserve URLs, page titles, descriptions and social tags. Rebuild canonical and language links, keep source redirects, and carry existing structured data into the matching templates.</p>
+          <div class="seo-route-map" role="img" aria-label="Your page keeps the same public URL after migration"><div><span>Your site</span><code>/your-page</code></div><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><div><span>In Grav</span><code>/your-page</code></div></div>
+          <div class="search-preview" aria-label="Page title and description carried into the Grav site"><small>example.com › your-page</small><strong>Your page title, preserved</strong><p>Your original description, editable in Grav. The same content at the right URL.</p></div>
+          <ul class="seo-checks"><li><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>URLs &amp; 301s</li><li><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>Titles &amp; social tags</li><li><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>Canonical &amp; hreflang</li></ul>
+          <p>Route checks surface content and redirect gaps. Sitemaps and robots rules are part of the workflow; local and preview copies stay out of search with noindex.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section structure" id="structure" aria-labelledby="structure-title">
+    <div class="wrap">
+      <div class="section-heading"><p class="eyebrow">Built for the next edit</p><h2 id="structure-title">A page becomes building blocks.</h2><p>Long pages become modules, each with its own Admin form and media. Edit a hero, reorder a section or hide a form without rebuilding the whole page.</p></div>
+      <figure class="module-figure" aria-label="Page content organized as editable Grav modules">
+        <div class="module-comparison">
+          <div><p class="diagram-label">Your live page</p><div class="source-browser" aria-hidden="true"><div class="browser-bar"><span>example.com</span></div><div class="source-hero"><small>01 / Hero</small><b>Built for what’s next.</b><i class="mock-button"></i></div><div class="source-cards"><span class="source-section-label">02 / Cards</span><i></i><i></i><i></i></div><div class="source-logos"><span class="source-section-label">03 / Gallery</span><i></i><i></i><i></i><i></i></div><div class="source-form"><span class="source-section-label">04 / Contact</span><i></i><i></i></div></div></div>
+          <div class="mapping-arrow" aria-hidden="true"><svg class="icon"><use href="#icon-arrow"/></svg><p>Same content.<br> A new structure.</p></div>
+          <div><p class="diagram-label">Your editable Grav page</p><div class="module-panel"><div class="module-panel-head">Home / modules <span>Admin ready</span></div><div class="module-row" data-section-kind="hero"><span class="handle" aria-hidden="true">⠿</span><div><b>01 / Hero</b><small>Heading, image, call to action</small></div><svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg></div><div class="module-row" data-section-kind="cards"><span class="handle" aria-hidden="true">⠿</span><div><b>02 / Cards</b><small>Features and content grids</small></div><svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg></div><div class="module-row" data-section-kind="gallery"><span class="handle" aria-hidden="true">⠿</span><div><b>03 / Gallery</b><small>Logos and image collections</small></div><svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg></div><div class="module-row" data-section-kind="contact"><span class="handle" aria-hidden="true">⠿</span><div><b>04 / Contact</b><small>Fields, delivery and success</small></div><svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg></div></div></div>
         </div>
-        <div>
-          <ul>
-            <li>Reads <code>robots.txt</code> and every sitemap, then <strong>crawls the site</strong>, because many site builders publish no sitemap or an incomplete one.</li>
-            <li>Detects <strong>fake 404s</strong> that return 200, redirect chains, hreflang languages and linked PDFs, including those hosted on a CDN.</li>
-            <li>Audits the site: <strong>every tracker with its ID</strong> (GTM, GA4, Meta, HubSpot, Hotjar, Heap…), every form and where it appears, embeds, inline custom code, fonts and the color palette.</li>
-          </ul>
-          <div class="check"><b>Check:</b> you review the route list and <code>audit.md</code> before anything is built.</div>
-        </div>
-      </div>
-
-      <div class="stage">
-        <div class="stage-head">
-          <div class="num">STAGE 03</div>
-          <h3>Decide</h3>
-          <div class="steps"><span>6 Questions</span></div>
-        </div>
-        <div>
-          <ul>
-            <li>Once the audit is done, it asks the <strong>questions only you can answer</strong> together, each with a recommended default: theme name and styling, language handling, each form's delivery and CAPTCHA, and analytics.</li>
-            <li>Your answers, and the options you turned down, go into the project notes because later stages depend on them.</li>
-          </ul>
-          <div class="check"><b>Check:</b> nothing styling-related happens until Tailwind or plain CSS is settled.</div>
-        </div>
-      </div>
-
-      <div class="stage">
-        <div class="stage-head">
-          <div class="num">STAGE 04</div>
-          <h3>Rebuild</h3>
-          <div class="steps"><span>7 Extract</span><span>8 Pages</span><span>9 Theme</span><span>10 Forms</span><span>11 Analytics</span></div>
-        </div>
-        <div>
-          <ul>
-            <li><strong>Extracts every text block</strong>, including text builders put in bare <code>div</code>s and <code>span</code>s, plus card grids, galleries, background videos and popups. Splits out the header, footer and sections repeated across pages.</li>
-            <li><strong>Downloads each media file once</strong>, deduplicated by SHA-256, and stores it with its page or in shared site media.</li>
-            <li><strong>Builds the page tree</strong> with frontmatter, blueprints, source provenance, shared sections and redirects. Every YAML file is linted with Grav's own parser.</li>
-            <li><strong>Splits long pages into modules.</strong> More than three horizontal sections makes a modular page, one module per section. Three or fewer stay a single page.</li>
-            <li><strong>Scaffolds the theme</strong> from the source's measured colors and type, and copies its section and card CSS onto <code>.src-*</code> hooks. That one step carries most of the look over.</li>
-            <li><strong>Converts the forms</strong> into <code>/forms/&lt;name&gt;</code> pages embedded wherever the source showed them, and adds analytics if you chose to.</li>
-          </ul>
-          <div class="check"><b>Check:</b> the YAML lint is clean, every route returns 200, and each form is submitted in a real browser.</div>
-        </div>
-      </div>
-
-      <div class="stage">
-        <div class="stage-head">
-          <div class="num">STAGE 05</div>
-          <h3>Match</h3>
-          <div class="steps"><span>12 Fidelity loop</span></div>
-        </div>
-        <div>
-          <ul>
-            <li>Works through groups of pages that share a layout, largest first. Takes <strong>source and local screenshots side by side</strong> at 1440px and 390px with Playwright.</li>
-            <li><code>--metrics</code> lists each section's height, padding, background and heading type for both sites, so <strong>fixes come from measurements, not guesswork</strong>.</li>
-            <li>Promotes layouts that need editor-friendly fields into <strong>their own page types</strong>, with a template and a blueprint.</li>
-            <li>A route-by-route verifier checks titles, text coverage, images, forms, leftover CDN assets, <code>lang</code>/hreflang, noindex and analytics leaks.</li>
-          </ul>
-          <div class="check"><b>Check:</b> every route passes the verifier and you approve the side-by-side report.</div>
-        </div>
-      </div>
-
-      <div class="stage">
-        <div class="stage-head">
-          <div class="num">STAGE 06</div>
-          <h3>Hand off</h3>
-          <div class="steps"><span>13 Finish</span></div>
-        </div>
-        <div>
-          <ul>
-            <li>A final round: the verifier, the YAML lint, a clean Grav log, and one field edited through Admin or MCP that shows up on the rendered page.</li>
-            <li>Optionally runs <code>git init</code> in <code>grav/user</code>, with accounts, submissions, API keys and caches ignored.</li>
-            <li>A <strong>handoff summary</strong>: URLs, where credentials live, the MCP connection, your decisions, parity numbers and what still needs you, such as SMTP or font licenses.</li>
-          </ul>
-        </div>
-      </div>
+      </figure>
+      <div class="structure-options"><div class="structure-option"><span class="count">≤ 3</span><div><h3>Sections → one page</h3><p>One file, one Admin form. Keep shorter pages simple.</p></div></div><div class="structure-option"><span class="count">4+</span><div><h3>Sections → individual modules</h3><p>One module per section, with its own fields and media.</p></div></div></div>
+      <p class="structure-note">Articles stay in Markdown. Shared sections are stored once; popups don't count toward the threshold. Adjust it with <code>--modular-threshold</code> or use <code>--modular off</code>.</p>
     </div>
-  </div>
-</section>
+  </section>
 
-<section class="block" id="structure">
-  <div class="wrap">
-    <div class="kicker">Page structure</div>
-    <h2>One page or modular, decided per page</h2>
-    <p class="section-lede">The rule of thumb: <strong>more than three distinct horizontal sections means a modular page</strong>. Anything shorter stays one page with its sections in frontmatter. The skill counts what a visitor scrolls through (popups don't count) and builds each page the right way.</p>
-
-    <div class="structure">
-      <div class="shape">
-        <div class="shape-head"><span class="badge">≤ 3 sections</span><h3>Single page</h3></div>
-        <div class="stack" aria-hidden="true"><i class="s1"></i><i class="s2"></i><i class="s3"></i></div>
-<pre class="tree small"><span class="d">03.pricing/</span>
-└── <span class="f">sections.en.md</span>   <span class="c"># title, meta, sections: [ … ]</span></pre>
-        <p>One file and one Admin form. Editing a short page is quickest when everything is in one place.</p>
+  <section class="section conventions" id="conventions" aria-labelledby="conventions-title">
+    <div class="wrap">
+      <div class="section-heading"><p class="eyebrow">Grounded in Grav</p><h2 id="conventions-title">Grav conventions. Your design.</h2><p>Patterns from Grav’s official Quark2 theme help keep the result easy to extend. Your source styles, content and section order still lead the way.</p></div>
+      <div class="convention-map" aria-label="Source design becomes a standalone Grav theme with reusable fields, plugin assets and preserved settings">
+        <div class="convention-origin"><svg class="icon" aria-hidden="true"><use href="#icon-theme"/></svg><strong>Your source design</strong><span>Styles · content · URLs</span></div>
+        <div class="convention-connector" aria-hidden="true"><svg class="icon"><use href="#icon-arrow"/></svg></div>
+        <div class="convention-core"><span class="eyebrow">Standalone Grav theme</span><strong>Familiar today.<br>Flexible tomorrow.</strong></div>
+        <div class="convention-connector" aria-hidden="true"><svg class="icon"><use href="#icon-arrow"/></svg></div>
+        <div class="convention-parts"><div><strong>Reusable fields</strong><span>Consistent editors for pages and modules.</span></div><div><strong>Assets in the right place</strong><span>Nested forms and modules can register what they need.</span></div><div><strong>Settings that stay</strong><span>Ordinary theme rebuilds retain your Admin edits.</span></div></div>
       </div>
-      <div class="shape">
-        <div class="shape-head"><span class="badge rec">4+ sections</span><h3>Modular page</h3></div>
-        <div class="stack" aria-hidden="true"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i><i class="s5"></i></div>
-<pre class="tree small"><span class="d">01.home/</span>
-├── <span class="f">modular.en.md</span>          <span class="c"># title, meta, popups</span>
-├── <span class="d">01._hero/</span><span class="f">hero.en.md</span>
-├── <span class="d">02._why-teams-switch/</span><span class="f">cards.en.md</span>
-├── <span class="d">03._partners/</span><span class="f">gallery.en.md</span>
-├── <span class="d">04._newsletter/</span><span class="f">shared.en.md</span>
-└── <span class="d">05._contact/</span><span class="f">form.en.md</span></pre>
-        <p>Each section becomes a module with its own Admin form and media folder. Reorder, hide or edit one section without touching the rest.</p>
-      </div>
+      <p class="convention-note">Focused Twig blocks and a separate custom stylesheet make the next change smaller. <a class="text-link" href="https://github.com/getgrav/grav-theme-quark2">Explore official Quark2 <svg class="icon" aria-hidden="true"><use href="#icon-external"/></svg></a></p>
     </div>
+  </section>
 
-    <div class="kinds">
-      <span class="kind"><b>hero</b> first section with an H1 or a background</span>
-      <span class="kind"><b>cards</b> feature and card grids</span>
-      <span class="kind"><b>gallery</b> logo strips and photo sets</span>
-      <span class="kind"><b>form</b> sections with a form</span>
-      <span class="kind"><b>shared</b> a section reused site-wide</span>
-      <span class="kind"><b>section</b> everything else</span>
+  <section class="section verify-section" id="results" aria-labelledby="verification-title">
+    <div class="wrap verification">
+      <div><p class="eyebrow">Compare. Refine. Repeat.</p><h2 id="verification-title">Check every route. Refine every detail.</h2><p class="intro">A first pass gets the site running. The fidelity loop brings the design closer, with measured comparisons until you're happy with the result.</p><ul class="checks"><li><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg><span><strong>Every route checked.</strong> Titles, text, images, redirects, language tags, noindex and analytics.</span></li><li><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg><span><strong>Desktop and mobile compared.</strong> Source and local screenshots at 1440px and 390px, with section measurements.</span></li><li><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg><span><strong>Forms submitted in a browser.</strong> A saved record or captured email backs the success message.</span></li><li><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg><span><strong>You approve the handoff.</strong> Reports, decisions, remaining gaps and a real Admin or MCP edit round-trip.</span></li></ul></div>
+      <div><figure class="compare-figure" aria-label="Compare, measure and refine the source and local site"><div class="compare-pages"><div><p class="diagram-label">Source website</p><div class="page-thumbnail" aria-hidden="true"><i class="thumbnail-top"></i><div class="thumbnail-hero"><i></i><i></i></div><div class="thumbnail-grid"><i></i><i></i><i></i></div><i class="thumbnail-footer"></i></div></div><div><p class="diagram-label">Local Grav site</p><div class="page-thumbnail" aria-hidden="true"><i class="thumbnail-top"></i><div class="thumbnail-hero"><i></i><i></i></div><div class="thumbnail-grid"><i></i><i></i><i></i></div><i class="thumbnail-footer"></i></div></div></div><div class="compare-loop"><span>Compare</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><span>Measure</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg><span>Refine</span><svg class="icon" aria-hidden="true"><use href="#icon-loop"/></svg></div></figure><dl class="migration-stats" aria-label="Reported results from the original multilingual Webflow migration"><div><dt>Routes passing</dt><dd>100%</dd></div><div><dt>Average source text coverage</dt><dd>100%</dd></div><div><dt>Main-template height difference</dt><dd>~1%</dd></div></dl><p class="evidence-note">From the original multilingual Webflow migration, with every form browser-tested. The first pass took about 10 minutes; visual refinement took longer. These describe that migration, not a guarantee for every site.</p></div>
     </div>
-    <p class="note">Every module kind has its own template and Admin form, so you can give, say, all heroes named fields later. Change the cut-off with <code>--modular-threshold</code>, or turn modules off with <code>--modular off</code>.</p>
-  </div>
-</section>
+  </section>
 
-<section class="block" id="decisions">
-  <div class="wrap">
-    <div class="kicker">It asks first</div>
-    <h2>Your decisions stay yours</h2>
-    <p class="section-lede">A conversion involves real choices: how forms deliver, what loads analytics, what to style with. The skill asks at the right point, recommends a default for each, and never guesses on your behalf.</p>
-
-    <div class="decisions">
-      <div class="q">
-        <span class="when">At intake</span>
-        <h3>Where and how it runs</h3>
-        <div class="opts"><span class="opt rec">PHP built-in server</span><span class="opt">Docker + Mailpit</span><span class="opt">Valet / Herd / MAMP</span></div>
-        <p>Plus the project folder and which agents (Claude Code, Codex, Cursor) to connect to MCP.</p>
-      </div>
-      <div class="q">
-        <span class="when">After the audit</span>
-        <h3>Theme and styling</h3>
-        <div class="opts"><span class="opt rec">Tailwind 4</span><span class="opt">Plain CSS + tokens</span></div>
-        <p>Tailwind is recommended if you'll keep working on the design. Either way it's set up before any detailed styling.</p>
-      </div>
-      <div class="q">
-        <span class="when">After the audit</span>
-        <h3>Languages</h3>
-        <div class="opts"><span class="opt rec">Native multilang</span><span class="opt">Per-language trees</span></div>
-        <p>Native translations (<code>page.es.md</code>) when hreflang maps the pages to each other. Otherwise one tree per language prefix.</p>
-      </div>
-      <div class="q">
-        <span class="when">Per form</span>
-        <h3>Where submissions go</h3>
-        <div class="opts"><span class="opt rec">Save to user/data</span><span class="opt">Email (SMTP)</span><span class="opt">Webhook</span><span class="opt">Keep the embed</span></div>
-        <p>Saving is the safe default until email is configured. It never posts to a guessed third-party endpoint.</p>
-      </div>
-      <div class="q">
-        <span class="when">Per form</span>
-        <h3>CAPTCHA and success</h3>
-        <div class="opts"><span class="opt rec">Cap (built-in)</span><span class="opt">Turnstile</span><span class="opt">reCAPTCHA</span><span class="opt rec">Inline message</span><span class="opt">Redirect</span></div>
-        <p>Cap is invisible and self-hosted and needs no keys. The success message says what actually happened to the submission.</p>
-      </div>
-      <div class="q">
-        <span class="when">After the audit</span>
-        <h3>Analytics</h3>
-        <div class="opts"><span class="opt rec">Port, production only</span><span class="opt">Consent-gated</span><span class="opt">Some tags</span><span class="opt">Drop</span></div>
-        <p>Trackers only ever load on your production hostnames, so no test traffic reaches your analytics.</p>
-      </div>
+  <section class="section details-section" id="technical" aria-labelledby="details-title">
+    <div class="wrap">
+      <div class="section-heading"><p class="eyebrow">For the curious</p><h2 id="details-title">Under the hood.</h2><p>The workflow is explicit, the scripts are rerunnable, and the important choices stay yours.</p></div>
+      <details id="checkpoints"><summary><span class="summary-index">01</span>All 13 checkpoints</summary><div class="detail-body"><ol class="checkpoint-list">
+        <li><strong>Confirm the plan.</strong> URL, folder, runtime and agent clients.</li><li><strong>Install Grav + Admin2.</strong> Start the server and verify Admin login.</li><li><strong>Connect API + MCP.</strong> Create the local launcher; verify an agent can list pages.</li><li><strong>Discover every route.</strong> Read robots and sitemaps, crawl links, detect soft 404s, redirects, languages and PDFs.</li><li><strong>Review the audit.</strong> Trackers and IDs, forms including popups, embeds, custom code, fonts and palette.</li><li><strong>Make the choices.</strong> Theme name, styling, languages, form delivery, CAPTCHA and analytics.</li><li><strong>Extract and import.</strong> Text, cards, galleries, video and modals; download media once and deduplicate by SHA-256.</li><li><strong>Build the pages.</strong> Frontmatter, blueprints, source provenance, shared sections and redirects. Lint with Grav's YAML parser.</li><li><strong>Create the theme.</strong> Measured tokens and source CSS, editable navigation and footer, optional Tailwind 4.</li><li><strong>Connect the forms.</strong> Grav Form pages with inline submission, selected delivery and browser tests.</li><li><strong>Handle analytics.</strong> Port approved tags only to the selected production hosts.</li><li><strong>Iterate to parity.</strong> Compare layout groups at desktop and mobile widths. Refine templates and named Admin fields.</li><li><strong>Verify and hand over.</strong> Route report, YAML lint, clean Grav log, a real edit, credentials location and remaining provider or licensing needs.</li>
+      </ol><p style="margin-top:22px">Each stage has a check before the next begins. Your custom fixes stay in rerunnable <code>migration/fixups/</code> scripts. You decide when the visual match is close enough.</p></div></details>
+      <details id="decisions"><summary><span class="summary-index">02</span>Your choices, defaults and safeguards</summary><div class="detail-body"><div class="choice-grid">
+        <div><h3>Runtime &amp; agent access</h3><p>PHP's built-in server by default, Docker + Mailpit, or Valet / Herd / MAMP. Choose the folder and clients: Codex, Claude Code, Cursor or another agent. Global client config changes require your approval.</p></div><div><h3>Theme &amp; styling</h3><p>Name your theme. Choose Tailwind 4 for ongoing design work or plain CSS with tokens before detailed styling begins. <code>DESIGN.md</code> records the decisions.</p></div><div><h3>Languages</h3><p>Native Grav multilang when hreflang maps translations, or separate trees per language prefix. Titles, descriptions, Open Graph and language tags come across.</p></div><div><h3>Form delivery &amp; success</h3><p>Save to <code>user/data</code>, send through SMTP, use a webhook or keep an embed. Choose an inline message or redirect. The message reflects what actually happens.</p></div><div><h3>CAPTCHA</h3><p>Grav's built-in Cap is the default: self-hosted, invisible and no keys required. Turnstile and reCAPTCHA are alternatives.</p></div><div><h3>Analytics</h3><p>Port on production hosts only, add consent gating, retain selected tags or drop them. Local and preview traffic stays out of production analytics.</p></div>
+      </div><ul class="guardrails" id="rules"><li><strong>Preserve source URLs.</strong> Ask before renaming; add 301 redirects for approved changes.</li><li><strong>Keep authoring private.</strong> Admin2, API and MCP are authoring tools and should not be exposed in the production profile.</li><li><strong>Protect local copies and secrets.</strong> Noindex meta and headers on preview hosts; no printed, logged or committed keys. SMTP passwords stay in environment variables.</li><li><strong>Use real integrations.</strong> No guessed form endpoints or pretend success messages. Confirm copied font licenses before production.</li><li><strong>Prefer Grav's built-ins.</strong> Form, Cap, Email, page media and native multilang. Theme JavaScript has no dependencies or jQuery.</li></ul></div></details>
+      <details id="output"><summary><span class="summary-index">03</span>What ends up on disk</summary><div class="detail-body"><pre class="tree">~/Sites/example-grav/
+├── grav/
+│   └── user/             # pages, theme, config and media
+│       ├── pages/
+│       │   ├── 01.home/  # modular page + individual sections
+│       │   └── 02.about/
+│       ├── themes/
+│       └── media/
+├── migration/            # crawl, audit, reports, screenshots
+│   └── fixups/           # your rerunnable custom changes
+├── .local/               # credentials, never committed
+├── bin/grav-mcp          # launcher reads the key at startup
+└── .mcp.json             # project MCP configuration</pre><p><strong>Scripts write the bulk; Admin and MCP handle later edits.</strong> The page tree is generated on disk. Later agent edits use the API with conflict checks. Theme rebuilds preserve your settings and custom CSS; replacing them requires an explicit reset flag. Shared sections are stored once, and repeated layouts can become custom page types with named Admin fields.</p><p>Only <code>grav/user</code> needs a Git repository, if you choose one. Accounts, submissions, credentials and caches are excluded. Local credential files use restrictive permissions; agent configurations point at the launcher rather than containing a key.</p></div></details>
+      <details id="scripts"><summary><span class="summary-index">04</span>The scripts that do the work</summary><div class="detail-body"><p>Python uses its standard library; PHP uses Grav's YAML parser. Node runs MCP and, when needed, Tailwind or Playwright. Each script has <code>--help</code>.</p><div class="table-scroll"><table><thead><tr><th scope="col">Script</th><th scope="col">Purpose</th></tr></thead><tbody>
+        <tr><td><code>install_grav.sh</code></td><td>Latest Grav + Admin2, PHP and extension checks.</td></tr><tr><td><code>bootstrap_access.sh</code></td><td>Admin, API key and MCP launcher. Reuses credentials unless rotation is requested.</td></tr><tr><td><code>crawl_site.py</code></td><td>Sitemaps, crawl, cached HTML, redirects, languages and PDFs.</td></tr><tr><td><code>audit_site.py</code></td><td>Trackers, forms, embeds, code, fonts and palette.</td></tr><tr><td><code>extract_content.py</code></td><td>Sections, blocks, shared content, site navigation and layout groups.</td></tr><tr><td><code>import_media.py</code></td><td>Download once, deduplicate and assign page or shared media.</td></tr><tr><td><code>build_pages.py</code></td><td>Page tree, modules, frontmatter, languages, provenance and redirects.</td></tr><tr><td><code>scaffold_theme.py</code></td><td>Standalone theme, source CSS and design tokens, optional Tailwind.</td></tr><tr><td><code>build_forms.py</code></td><td>Form plan, Grav Form pages and CAPTCHA setup.</td></tr><tr><td><code>capture_pages.mjs</code></td><td>Source and local screenshots, computed styles and section measurements.</td></tr><tr><td><code>verify_parity.py</code></td><td>Route, content, media, forms, SEO and analytics checks.</td></tr><tr><td><code>grav_config.php</code></td><td>Read, merge and lint YAML using Grav's parser.</td></tr>
+      </tbody></table></div></div></details>
+      <details id="requirements"><summary><span class="summary-index">05</span>What your machine needs</summary><div class="detail-body requirements"><div><h3>PHP 8.3+ or Docker</h3><p>Extensions: <code>curl ctype dom gd json mbstring openssl session simplexml xml zip</code>. Recommended: <code>intl yaml apcu opcache</code>. Docker brings its own runtime.</p></div><div><h3>Python 3.9+</h3><p>Standard library only. No pip installation for crawling, extraction or page building.</p></div><div><h3>Node 18+</h3><p>For Grav MCP, Tailwind and Playwright. Installed as needed inside the migration project.</p></div></div></details>
     </div>
-  </div>
-</section>
-
-<section class="block" id="output">
-  <div class="wrap">
-    <div class="kicker">What ends up on disk</div>
-    <h2>One folder for everything</h2>
-    <p class="section-lede">Grav, the migration files and the agent wiring sit side by side, and only <code>grav/user</code> needs to be in git.</p>
-
-    <div class="split">
-<pre class="tree"><span class="d">~/Sites/acme-grav/</span>
-├── <span class="d">grav/</span>              <span class="c"># Grav 2 + Admin2, API, Form, Email</span>
-│   └── <span class="d">user/</span>          <span class="c"># the site: pages, config, theme</span>
-│       ├── <span class="d">pages/</span>     <span class="c"># one folder per source URL</span>
-│       │   ├── <span class="d">01.home/</span>   <span class="c"># modular: one module per section</span>
-│       │   │   ├── <span class="f">modular.md</span>
-│       │   │   ├── <span class="d">01._hero/</span>
-│       │   │   └── <span class="d">02._features/</span>
-│       │   └── <span class="d">02.pricing/</span> <span class="c"># 3 sections or fewer</span>
-│       ├── <span class="d">themes/acme/</span>
-│       └── <span class="d">media/</span>     <span class="c"># shared images + PDFs</span>
-├── <span class="d">migration/</span>         <span class="c"># crawl, audit, reports, screenshots</span>
-│   ├── <span class="f">routes.json</span>
-│   ├── <span class="f">audit.md</span>
-│   ├── <span class="f">parity-report.md</span>
-│   ├── <span class="d">screens/</span>       <span class="c"># source vs local, side by side</span>
-│   └── <span class="d">fixups/</span>        <span class="c"># your rerunnable custom changes</span>
-├── <span class="d">.local/</span>            <span class="c"># credentials (0600, never committed)</span>
-├── <span class="f">bin/grav-mcp</span>       <span class="c"># MCP launcher, reads the key at start</span>
-└── <span class="f">.mcp.json</span>          <span class="c"># Claude Code picks it up</span></pre>
-
-      <div class="facts">
-        <div class="fact"><span class="n">01</span><p><strong>Scripts write the bulk, MCP handles later edits.</strong> The page tree is written to disk in one fast, repeatable pass. After that you and your agent edit through Admin or MCP, which handle concurrent edits safely.</p></div>
-        <div class="fact"><span class="n">02</span><p><strong>Rerun anything.</strong> Every script is idempotent. Your own page types and fixes go in <code>migration/fixups/</code> as scripts, so rebuilding never loses them.</p></div>
-        <div class="fact"><span class="n">03</span><p><strong>Generic first, custom when it pays off.</strong> Pages and modules start as editable blocks. A module kind (every hero, say) or a layout used across many pages can be promoted to named Admin fields.</p></div>
-        <div class="fact"><span class="n">04</span><p><strong>Nothing secret leaks.</strong> No key or password is printed, logged or committed. SMTP passwords go in environment variables, not YAML.</p></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="block" id="install">
-  <div class="wrap">
-    <div class="kicker">Install</div>
-    <h2>Add it to your agent</h2>
-    <p class="section-lede">It follows the open Agent Skills format: a <code>SKILL.md</code> with scripts and references loaded only when needed. One folder works in Claude Code, Codex and any other agent that reads skills.</p>
-
-    <div class="tabs">
-      <div class="tablist" role="tablist" aria-label="Install options">
-        <button class="tab" role="tab" id="t-plugin" aria-controls="p-plugin" aria-selected="true">Claude Code plugin</button>
-        <button class="tab" role="tab" id="t-claude" aria-controls="p-claude" aria-selected="false" tabindex="-1">Claude Code skill folder</button>
-        <button class="tab" role="tab" id="t-codex" aria-controls="p-codex" aria-selected="false" tabindex="-1">Codex</button>
-        <button class="tab" role="tab" id="t-other" aria-controls="p-other" aria-selected="false" tabindex="-1">Other agents</button>
-      </div>
-
-      <div class="panel" role="tabpanel" id="p-plugin" aria-labelledby="t-plugin">
-        <p>Add the marketplace, then install the plugin. Run these inside Claude Code:</p>
-        <div class="code"><pre>/plugin marketplace add w00fz/grav-skills
-/plugin install website-to-grav@grav-skills</pre><button class="copy" type="button">Copy</button></div>
-        <p>Updates come through <code>/plugin marketplace update grav-skills</code>.</p>
-      </div>
-
-      <div class="panel" role="tabpanel" id="p-claude" aria-labelledby="t-claude" hidden>
-        <p>Clone the repo and link the skill into your personal skills folder:</p>
-        <div class="code"><pre>git clone https://github.com/w00fz/grav-skills.git ~/Projects/grav-skills
-ln -s ~/Projects/grav-skills/skills/website-to-grav ~/.claude/skills/website-to-grav</pre><button class="copy" type="button">Copy</button></div>
-        <p>A <code>git pull</code> updates it.</p>
-      </div>
-
-      <div class="panel" role="tabpanel" id="p-codex" aria-labelledby="t-codex" hidden>
-        <p>Link the same folder into Codex's skills directory:</p>
-        <div class="code"><pre>git clone https://github.com/w00fz/grav-skills.git ~/Projects/grav-skills
-ln -s ~/Projects/grav-skills/skills/website-to-grav ~/.codex/skills/website-to-grav</pre><button class="copy" type="button">Copy</button></div>
-        <p>Codex shows it as <strong>Website to Grav</strong>. Call it with <code>$website-to-grav</code>.</p>
-      </div>
-
-      <div class="panel" role="tabpanel" id="p-other" aria-labelledby="t-other" hidden>
-        <p>Any agent that supports <a href="https://agentskills.io">Agent Skills</a> can load <code>skills/website-to-grav/</code> directly. Agents without skill support can be pointed at <code>SKILL.md</code>: it's a plain checklist with every command it runs.</p>
-        <div class="code"><pre>skills/website-to-grav/
-  SKILL.md         <span class="c"># the workflow, decisions and rules</span>
-  references/      <span class="c"># read only when a step needs them</span>
-  scripts/         <span class="c"># crawl, audit, extract, build, verify…</span>
-  assets/          <span class="c"># theme skeleton + Docker runtime</span></pre><button class="copy" type="button">Copy</button></div>
-      </div>
-    </div>
-    <p class="note"><b>Private repo:</b> installing needs read access to <code>w00fz/grav-skills</code>. Claude Code and git use your existing GitHub login.</p>
-  </div>
-</section>
-
-<section class="block" id="use">
-  <div class="wrap">
-    <div class="kicker">Use</div>
-    <h2>Just ask</h2>
-    <p class="section-lede">The skill triggers on any request to migrate, clone, rebuild or port a site to Grav. Add whatever you already know and it skips those questions.</p>
-    <div class="prompts">
-      <div class="prompt-card">Convert https://acme.com to Grav.<small>Asks the rest, recommending a default for each answer.</small></div>
-      <div class="prompt-card">Rebuild our Webflow site locally in ~/Sites/acme-grav with Tailwind, and connect Codex to it.<small>Skips the folder, styling and agent questions.</small></div>
-      <div class="prompt-card">Use $website-to-grav on https://acme.com. Save form submissions with Cap, and keep analytics production-only.<small>Codex syntax, with the form and analytics decisions already made.</small></div>
-    </div>
-  </div>
-</section>
-
-<section class="block" id="scripts">
-  <div class="wrap">
-    <div class="kicker">Under the hood</div>
-    <h2>Plain scripts, no framework</h2>
-    <p class="section-lede">The agent makes the judgment calls; scripts do the repetitive work and give the same result every time. Python uses only the standard library, PHP calls Grav's own YAML parser, and Node runs only when screenshots or Tailwind need it. Every script has <code>--help</code>.</p>
-    <div class="scripts">
-      <div class="script"><code>install_grav.sh</code><p>Latest grav-admin into the project, with PHP and extension checks.</p></div>
-      <div class="script"><code>bootstrap_access.sh</code><p>Admin user, API key, MCP launcher and <code>.mcp.json</code>. Safe to rerun; <code>--rotate-key</code> issues a new key.</p></div>
-      <div class="script"><code>crawl_site.py</code><p>Sitemaps plus a crawl, giving the route list, cached HTML, redirects, languages and PDFs.</p></div>
-      <div class="script"><code>audit_site.py</code><p>Trackers, forms, embeds, inline code, fonts and palette, written to <code>audit.md</code>.</p></div>
-      <div class="script"><code>extract_content.py</code><p>Sections and blocks, menus and footer, shared sections and layout groups.</p></div>
-      <div class="script"><code>import_media.py</code><p>Downloads each file once, deduplicates by SHA-256 and decides where it's stored.</p></div>
-      <div class="script"><code>build_pages.py</code><p>Page tree with modular pages for long layouts, frontmatter, languages, redirects and a map of every page.</p></div>
-      <div class="script"><code>scaffold_theme.py</code><p>Theme from the skeleton, the measured design tokens and the ported source CSS, with optional Tailwind.</p></div>
-      <div class="script"><code>build_forms.py</code><p>A form plan for your answers, then the Grav Form pages and CAPTCHA config.</p></div>
-      <div class="script"><code>capture_pages.mjs</code><p>Playwright screenshots of source and local, plus computed tokens and per-section measurements.</p></div>
-      <div class="script"><code>verify_parity.py</code><p>A route-by-route parity report covering status, titles, coverage, media, forms, SEO and analytics.</p></div>
-      <div class="script"><code>grav_config.php</code><p>Merges, reads and lints YAML with the same parser Grav uses.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="block" id="rules">
-  <div class="wrap">
-    <div class="kicker">Learned the hard way</div>
-    <h2>Rules the skill always follows</h2>
-    <p class="section-lede">The skill comes from a real Webflow-to-Grav migration. Each rule below is there because breaking it caused a problem in that migration.</p>
-    <ul class="rules">
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg><span><strong>Every source URL survives.</strong> Nothing gets renamed without a 301 redirect, and it asks before "cleaning up" ugly builder slugs.</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg><span><strong>Analytics never fire off production.</strong> Local and preview hosts load no trackers.</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg><span><strong>Preview copies stay out of search</strong> through a noindex meta tag and <code>X-Robots-Tag</code>, not a <code>robots.txt</code> block that would stop crawlers seeing the noindex.</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg><span><strong>No fake integrations.</strong> A form stores or sends what it collects, and its success message says which.</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg><span><strong>Secrets are never printed, logged or committed.</strong> Agent configs point to a launcher instead of holding the key.</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg><span><strong>Admin, API and MCP are for authoring.</strong> The production profile doesn't expose them.</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg><span><strong>Grav's built-ins first:</strong> Form and Cap, Email, page media, <code>media://</code> and native multilang, before any custom code.</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg><span><strong>The theme's JavaScript has no dependencies.</strong> Menus, popups and the language switcher are written by hand, so jQuery is never needed.</span></li>
-    </ul>
-  </div>
-</section>
-
-<section class="block" id="results">
-  <div class="wrap">
-    <div class="kicker">Tested end to end</div>
-    <h2>How close it gets</h2>
-    <p class="section-lede">Tested on a real multilingual Webflow marketing site with over a hundred routes: an agent given only the skill, a clean machine and the URL.</p>
-    <div class="stats">
-      <div class="stat"><div class="v grad-text">100%</div><div class="l">of routes pass the parity check</div></div>
-      <div class="stat"><div class="v grad-text">100%</div><div class="l">average source text coverage</div></div>
-      <div class="stat"><div class="v grad-text">Every</div><div class="l">form converted and submitted in a browser</div></div>
-      <div class="stat"><div class="v grad-text">~1%</div><div class="l">page-height difference on the main templates</div></div>
-    </div>
-    <div class="timing">
-      <div class="t"><h3>Setup → full site <span>~10 min</span></h3><p>Install, MCP, crawl, audit, pages, theme and forms: every page live with its content and a first-pass theme.</p></div>
-      <div class="t"><h3>Fidelity loop <span>as long as you want</span></h3><p>Most of the time goes here, comparing screenshots and tuning CSS. You decide when it's close enough.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="block" id="requirements">
-  <div class="wrap">
-    <div class="kicker">Requirements</div>
-    <h2>What your machine needs</h2>
-    <div class="reqs">
-      <div class="req"><span class="tag">PHP 8.3+</span><h3>or Docker</h3><p>With <code>curl ctype dom gd json mbstring openssl session simplexml xml zip</code>. <code>intl yaml apcu opcache</code> are recommended. Docker brings its own.</p></div>
-      <div class="req"><span class="tag">Python 3.9+</span><h3>Standard library only</h3><p>Crawling, extraction and page building need no pip install.</p></div>
-      <div class="req"><span class="tag">Node 18+</span><h3>For MCP and screenshots</h3><p><code>grav-mcp</code>, Tailwind and Playwright are installed when needed, inside the project.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="closing">
-  <div class="wrap">
-    <h2>Move your site to <span class="grad-text">Grav</span>.</h2>
-    <p>Install the skill, give your agent a URL, and answer a few questions.</p>
-    <div class="cta">
-      <a class="btn btn-primary" href="#install">Install the skill</a>
-      <a class="btn btn-ghost" href="https://github.com/w00fz/grav-skills">View the source</a>
-    </div>
-  </div>
-</section>
-
+  </section>
+  <section class="closing" aria-labelledby="closing-title"><div class="wrap"><div><h2 id="closing-title">Bring your website to Grav.</h2><p>Install the skill. Bring a website. Make it yours in Grav.</p></div><a class="button button-violet" href="#install">Install the skill <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a></div></section>
+</main>
 <footer>
-  <div class="wrap">
-    <span>website-to-grav · MIT License · by <a href="https://github.com/w00fz">Djamil Legato</a></span>
-    <span>Built for <a href="https://getgrav.org">Grav</a> · Agent Skills format</span>
+  <div class="wrap footer-main">
+    <div class="footer-about">
+      <a class="brand" href="#top"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></span><span>anysite<span class="accent">2</span>grav</span></a>
+      <p>From a live website to an editable Grav site.</p>
+      <p class="footer-credit">Made by <a href="https://github.com/w00fz">Djamil Legato</a></p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <div class="footer-group"><h2>Explore</h2><a href="#how">How it works</a><a href="#efficiency">Scripts &amp; efficiency</a><a href="#seo">SEO</a><a href="#conventions">Theme conventions</a><a href="#requirements">Requirements</a></div>
+      <div class="footer-group"><h2>Elsewhere</h2><a href="https://github.com/w00fz/anysite2grav">GitHub <svg class="icon" aria-hidden="true"><use href="#icon-external"/></svg></a><a href="https://getgrav.org">Grav CMS <svg class="icon" aria-hidden="true"><use href="#icon-external"/></svg></a></div>
+    </nav>
   </div>
+  <div class="wrap footer-bottom"><span>anysite2grav · MIT License</span><a href="#top">Back to top <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a></div>
 </footer>
-
 <script>
-  // Tabs: click and arrow-key navigation.
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
-  const select = (tab) => {
-    tabs.forEach((other) => {
-      const selected = other === tab;
-      other.setAttribute('aria-selected', String(selected));
-      other.tabIndex = selected ? 0 : -1;
-      document.getElementById(other.getAttribute('aria-controls')).hidden = !selected;
-    });
-    tab.focus();
+  const themeOptions = ['system', 'light', 'dark'];
+  const themeNames = { system: 'System', light: 'Light', dark: 'Dark' };
+  const themeIcons = { system: 'icon-system', light: 'icon-sun', dark: 'icon-moon' };
+  const systemAppearance = window.matchMedia('(prefers-color-scheme: dark)');
+  const themeToggle = document.getElementById('theme-toggle');
+  const applyTheme = (requestedTheme) => {
+    const selectedTheme = themeOptions.includes(requestedTheme) ? requestedTheme : 'system';
+    document.documentElement.dataset.theme = selectedTheme;
+    const nextTheme = themeOptions[(themeOptions.indexOf(selectedTheme) + 1) % themeOptions.length];
+    document.getElementById('theme-label').textContent = themeNames[selectedTheme];
+    document.getElementById('theme-icon').setAttribute('href', '#' + themeIcons[selectedTheme]);
+    themeToggle.setAttribute('aria-label', 'Color theme: ' + themeNames[selectedTheme] + '. Switch to ' + themeNames[nextTheme] + '.');
+    themeToggle.title = 'Theme: ' + themeNames[selectedTheme] + '. Click for ' + themeNames[nextTheme] + '.';
+    const usesDarkTheme = selectedTheme === 'dark' || (selectedTheme === 'system' && systemAppearance.matches);
+    document.querySelector('meta[name="theme-color"]').content = usesDarkTheme ? '#15151a' : '#ffffff';
   };
-  tabs.forEach((tab, index) => {
-    tab.addEventListener('click', () => select(tab));
-    tab.addEventListener('keydown', (event) => {
-      const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
-      if (step) select(tabs[(index + step + tabs.length) % tabs.length]);
+  themeToggle.addEventListener('click', () => {
+    const nextTheme = themeOptions[(themeOptions.indexOf(document.documentElement.dataset.theme) + 1) % themeOptions.length];
+    applyTheme(nextTheme);
+    try { localStorage.setItem('anysite2grav-theme', nextTheme); } catch {}
+  });
+  systemAppearance.addEventListener('change', () => applyTheme(document.documentElement.dataset.theme));
+  window.addEventListener('storage', (storageEvent) => {
+    if (storageEvent.key === 'anysite2grav-theme' || storageEvent.key === null) applyTheme(storageEvent.newValue);
+  });
+  applyTheme(document.documentElement.dataset.theme);
+
+  let activeAgent = 'codex';
+  let activeScenario = 'simple';
+  const installTabs = [...document.querySelectorAll('[role="tab"]')];
+  const selectInstallTab = (selectedTab, { focusTab = true } = {}) => {
+    installTabs.forEach((installTab) => {
+      const isSelected = installTab === selectedTab;
+      installTab.setAttribute('aria-selected', String(isSelected));
+      installTab.tabIndex = isSelected ? 0 : -1;
+      const installPanel = document.getElementById(installTab.getAttribute('aria-controls'));
+      installPanel.hidden = !isSelected;
+      installPanel.inert = !isSelected;
+    });
+    activeAgent = selectedTab.dataset.installAgent;
+    renderExample();
+    if (focusTab) selectedTab.focus({ preventScroll: true });
+  };
+  installTabs.forEach((installTab, tabIndex) => {
+    installTab.addEventListener('click', () => selectInstallTab(installTab));
+    installTab.addEventListener('keydown', (keyboardEvent) => {
+      const keyOffsets = { ArrowRight: 1, ArrowLeft: -1 };
+      let nextIndex;
+      if (keyboardEvent.key === 'Home') nextIndex = 0;
+      else if (keyboardEvent.key === 'End') nextIndex = installTabs.length - 1;
+      else if (keyOffsets[keyboardEvent.key]) nextIndex = (tabIndex + keyOffsets[keyboardEvent.key] + installTabs.length) % installTabs.length;
+      if (nextIndex === undefined) return;
+      keyboardEvent.preventDefault();
+      selectInstallTab(installTabs[nextIndex]);
     });
   });
 
-  // Copy buttons copy the code text, without the # comments.
-  document.querySelectorAll('.copy').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const text = button.previousElementSibling.innerText.replace(/\s+#.*$/gm, '');
-      try {
-        await navigator.clipboard.writeText(text);
-        button.textContent = 'Copied';
-      } catch {
-        button.textContent = 'Press ⌘C';
+  const setMessageText = (element, message) => {
+    element.replaceChildren(...message.split(/(`[^`]+`)/g).map((part) => {
+      if (part.startsWith('`') && part.endsWith('`')) {
+        const codeElement = document.createElement('code');
+        codeElement.textContent = part.slice(1, -1);
+        return codeElement;
       }
-      setTimeout(() => { button.textContent = 'Copy'; }, 1600);
+      return document.createTextNode(part);
+    }));
+  };
+  const exampleScenarios = {
+    simple: {
+      prompt: 'Convert https://example.com to Grav.', question: 'How would you like to style the theme?',
+      answers: [
+        { label: 'Tailwind 4', reply: 'Use Tailwind 4.', next: 'I’ll keep the theme standalone and record its design tokens. First, I’ll crawl the source URLs.' },
+        { label: 'Plain CSS', reply: 'Plain CSS with design tokens, please.', next: 'I’ll use plain CSS and source-derived tokens, with no Node build needed in production. First, I’ll crawl the source URLs.' },
+      ],
+    },
+    design: {
+      prompt: 'Rebuild https://example.com in ~/Sites/example-grav with Tailwind. Connect my agent through MCP.', question: 'Where should form submissions go?',
+      answers: [
+        { label: 'Save locally', reply: 'Save submissions locally with Cap.', next: 'I’ll use Grav Form and Cap, save submissions in `user/data`, and verify a real browser submission.' },
+        { label: 'Email', reply: 'Send submissions by email.', next: 'I’ll use Grav Form and Email. We’ll configure SMTP before testing delivery.' },
+        { label: 'Webhook', reply: 'Send them to a webhook.', next: 'I’ll ask for your approved endpoint and expected fields before wiring it up.' },
+        { label: 'Keep the embed', reply: 'Keep the existing form embed.', next: 'I’ll preserve the embed and check its fields, validation and success state on the migrated site.' },
+      ],
+    },
+    forms: {
+      prompt: 'Rebuild https://example.com in Grav. Save form submissions with Cap, and keep analytics production-only.', question: 'If the audit finds translations, how should we organize them?',
+      answers: [
+        { label: 'Native multilang', reply: 'Use native Grav multilang.', next: 'I’ll map translated routes to `page.<lang>.md` files, keep the source URLs, and check `hreflang` links.' },
+        { label: 'Separate trees', reply: 'Keep separate trees for each language.', next: 'I’ll retain each language prefix and build its own page tree. Canonical and language links stay part of verification.' },
+      ],
+    },
+  };
+  const selectedAnswers = { simple: 0, design: 0, forms: 0 };
+  const renderReply = () => {
+    const answer = exampleScenarios[activeScenario].answers[selectedAnswers[activeScenario]];
+    setMessageText(document.getElementById('example-reply'), answer.reply);
+    setMessageText(document.getElementById('example-next'), answer.next);
+    document.querySelectorAll('#example-answers button').forEach((answerButton, answerIndex) => {
+      answerButton.setAttribute('aria-pressed', String(answerIndex === selectedAnswers[activeScenario]));
+    });
+  };
+  const renderExample = () => {
+    const scenario = exampleScenarios[activeScenario];
+    const agentNames = { codex: 'Codex', claude: 'Claude Code', other: 'Your agent' };
+    document.getElementById('example-agent').textContent = agentNames[activeAgent];
+    document.querySelectorAll('[data-agent-label]').forEach((label) => { label.textContent = agentNames[activeAgent]; });
+    const prompt = scenario.prompt.replace('https://example.com', '`https://example.com`');
+    const codexPrompt = '`$anysite2grav` ' + prompt;
+    setMessageText(document.getElementById('example-prompt'), activeAgent === 'codex' ? codexPrompt : prompt);
+    setMessageText(document.getElementById('example-prompt-size'), codexPrompt);
+    document.getElementById('example-question').textContent = scenario.question;
+    document.getElementById('example-answers').replaceChildren(...scenario.answers.map((answer, answerIndex) => {
+      const answerButton = document.createElement('button');
+      answerButton.type = 'button';
+      answerButton.textContent = answer.label;
+      answerButton.addEventListener('click', () => { selectedAnswers[activeScenario] = answerIndex; renderReply(); });
+      return answerButton;
+    }));
+    renderReply();
+    document.querySelectorAll('[data-agent]').forEach((agentButton) => agentButton.setAttribute('aria-pressed', String(agentButton.dataset.agent === activeAgent)));
+    document.querySelectorAll('[data-scenario]').forEach((scenarioButton) => scenarioButton.setAttribute('aria-pressed', String(scenarioButton.dataset.scenario === activeScenario)));
+  };
+  document.querySelectorAll('[data-agent]').forEach((agentButton) => agentButton.addEventListener('click', () => {
+    const installerTargets = { codex: 't-codex', claude: 't-claude', other: 't-other' };
+    selectInstallTab(document.getElementById(installerTargets[agentButton.dataset.agent]), { focusTab: false });
+  }));
+  document.querySelectorAll('[data-scenario]').forEach((scenarioButton) => scenarioButton.addEventListener('click', () => { activeScenario = scenarioButton.dataset.scenario; renderExample(); }));
+  renderExample();
+
+  document.querySelectorAll('.code pre').forEach((preElement) => {
+    const codeElement = document.createElement('code');
+    const rawCommands = preElement.textContent;
+    const commandWords = new Set(['clone', 'marketplace', 'add', 'install']);
+    rawCommands.split('\n').forEach((line, lineIndex) => {
+      if (lineIndex > 0) codeElement.append(document.createTextNode('\n'));
+      let wordIndex = 0;
+      for (const token of line.match(/\s+|\S+/g) ?? []) {
+        if (/^\s+$/.test(token)) { codeElement.append(document.createTextNode(token)); continue; }
+        const tokenElement = document.createElement('span');
+        tokenElement.textContent = token;
+        if (wordIndex === 0 || commandWords.has(token)) tokenElement.className = 'syntax-command';
+        else if (token.startsWith('-')) tokenElement.className = 'syntax-option';
+        else if (/^https?:/.test(token)) tokenElement.className = 'syntax-url';
+        else if (token.startsWith('~/')) tokenElement.className = 'syntax-path';
+        codeElement.append(tokenElement);
+        wordIndex++;
+      }
+    });
+    preElement.replaceChildren(codeElement);
+    preElement.tabIndex = 0;
+    const copyButton = preElement.parentElement.querySelector('[data-copy]');
+    preElement.setAttribute('aria-label', copyButton.getAttribute('aria-label').replace(/^Copy /, ''));
+  });
+  document.querySelectorAll('[data-copy]').forEach((copyButton) => {
+    let resetTimer;
+    const originalLabel = copyButton.getAttribute('aria-label');
+    const setCopyState = (state, label) => {
+      copyButton.dataset.copyState = state;
+      copyButton.querySelector('use').setAttribute('href', state === 'copied' ? '#icon-check' : '#icon-copy');
+      copyButton.setAttribute('aria-label', label);
+      copyButton.title = label;
+    };
+    copyButton.addEventListener('click', async () => {
+      clearTimeout(resetTimer);
+      const codeElement = document.getElementById(copyButton.dataset.copy);
+      copyButton.disabled = true;
+      try {
+        await navigator.clipboard.writeText(codeElement.textContent);
+        setCopyState('copied', 'Copied to clipboard');
+        document.getElementById('copy-status').textContent = 'Copied to clipboard.';
+      } catch {
+        const selectionRange = document.createRange();
+        selectionRange.selectNodeContents(codeElement);
+        const currentSelection = window.getSelection();
+        currentSelection.removeAllRanges();
+        currentSelection.addRange(selectionRange);
+        setCopyState('selected', 'Text selected; copy with your keyboard');
+        document.getElementById('copy-status').textContent = 'Copy was unavailable. Text is selected; copy it with your keyboard.';
+      } finally {
+        copyButton.disabled = false;
+      }
+      resetTimer = setTimeout(() => { setCopyState('ready', originalLabel); }, 1800);
     });
   });
+
+  const revealAnchor = () => {
+    let anchorTarget;
+    try { anchorTarget = document.getElementById(decodeURIComponent(location.hash.slice(1))); } catch { return; }
+    if (!anchorTarget) return;
+    let ancestorElement = anchorTarget;
+    while (ancestorElement) {
+      if (ancestorElement instanceof HTMLDetailsElement) ancestorElement.open = true;
+      ancestorElement = ancestorElement.parentElement;
+    }
+    requestAnimationFrame(() => anchorTarget.scrollIntoView({ block: 'start' }));
+  };
+  window.addEventListener('hashchange', revealAnchor);
+  document.querySelectorAll('a[href^="#"]').forEach((anchorLink) => anchorLink.addEventListener('click', () => {
+    if (anchorLink.hash === location.hash) revealAnchor();
+  }));
+  if (location.hash) revealAnchor();
 </script>
 </body>
 </html>

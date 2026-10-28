@@ -1,0 +1,53 @@
+title: Modular page
+# Keep Grav's module collection settings.
+extends@: '@parent'
+
+form:
+  fields:
+    tabs:
+      fields:
+        content:
+          import@:
+            type: partials/page-fields
+            context: blueprints://pages
+        popups:
+          type: tab
+          title: Popups
+          fields:
+            header.sections:
+              type: list
+              label: Popups
+              style: vertical
+              collapsed: true
+              help: Dialogs this page can open (buttons target them by anchor id). Visible sections are the child modules.
+              fields:
+                .type:
+                  type: select
+                  label: Type
+                  default: section
+                  options:
+                    section: Popup
+                    shared: Shared popup
+                .shared:
+                  type: text
+                  label: Shared section name
+                  help: Folder name under /shared (only for Shared popups)
+                .id:
+                  type: text
+                  label: Anchor id
+                  help: Opened by buttons with "Opens modal" set to this id
+                .modal:
+                  type: hidden
+                  default: true
+                .classes:
+                  type: array
+                  label: Style hooks
+                  value_only: true
+                .blocks:
+                  type: list
+                  label: Blocks
+                  style: vertical
+                  collapsed: true
+                  import@:
+                    type: partials/block-fields
+                    context: blueprints://pages

@@ -1,0 +1,4 @@
+interface:
+  display_name: "anysite2grav"
+  short_description: "Convert a live website into a local Grav site"
+  default_prompt: "Use $anysite2grav to convert https://example.com into a local Grav site with Admin2, API and MCP set up."

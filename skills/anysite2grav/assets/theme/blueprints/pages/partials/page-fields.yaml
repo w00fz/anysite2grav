@@ -1,0 +1,18 @@
+form:
+  fields:
+    header.head_title:
+      type: text
+      label: Browser title
+      help: Exact <title>. Leave empty for "Page | Site".
+      ordering@: header.title
+    header.body_classes:
+      type: text
+      label: Body classes
+      help: Space-separated layout hooks used by this theme.
+    header.noindex:
+      type: toggle
+      toggleable: true
+      label: Keep this page out of search
+      highlight: 0
+      options: {1: Yes, 0: No}
+      validate: {type: bool}
