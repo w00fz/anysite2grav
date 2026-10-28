@@ -1,0 +1,16 @@
+title: Form page
+extends@:
+  type: default
+  context: blueprints://pages
+
+form:
+  fields:
+    tabs:
+      fields:
+        content:
+          fields:
+            form_help:
+              type: display
+              label: Form definition
+              markdown: true
+              content: 'Fields and processing live in this page''s frontmatter under `form:` (Expert mode). Other pages embed it with a **Form** block named after this folder.'

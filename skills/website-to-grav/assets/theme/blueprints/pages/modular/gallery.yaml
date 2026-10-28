@@ -1,0 +1,4 @@
+title: Gallery module
+extends@:
+  type: modular/section
+  context: blueprints://pages

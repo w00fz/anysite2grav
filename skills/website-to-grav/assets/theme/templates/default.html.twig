@@ -1,0 +1,16 @@
+{% extends 'partials/base.html.twig' %}
+
+{# Long-form pages (articles, legal): Markdown body, optional sections before it. #}
+{% block content %}
+  {% if page.header.sections %}
+    {% include 'partials/sections.html.twig' with {sections: page.header.sections, page: page} %}
+  {% endif %}
+  {% if not page.header.body_slot %}
+  <article class="section">
+    <div class="container prose">
+      {% if not page.header.sections and not (page.content matches '/<h1[\\s>]/') %}<h1>{{ page.title }}</h1>{% endif %}
+      {{ page.content|raw }}
+    </div>
+  </article>
+  {% endif %}
+{% endblock %}

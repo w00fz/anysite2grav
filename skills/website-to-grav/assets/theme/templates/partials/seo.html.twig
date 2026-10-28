@@ -1,0 +1,16 @@
+{# Exact source <title> is kept in head_title; otherwise "Page | Site". #}
+<title>{{ page.header.head_title ?: (page.home ? site.title : page.title ~ ' | ' ~ site.title) }}</title>
+{% for meta in page.metadata %}
+  <meta {% if meta.http_equiv %}http-equiv="{{ meta.http_equiv|e }}"{% endif %} {% if meta.name %}name="{{ meta.name|e }}"{% endif %} {% if meta.property %}property="{{ meta.property|e }}"{% endif %} content="{{ meta.content|e }}">
+{% endfor %}
+{% if theme_noindex() or page.header.noindex %}
+  <meta name="robots" content="noindex, nofollow">
+{% endif %}
+<link rel="canonical" href="{{ page.url(true, true) }}">
+{% set translated = page.translatedLanguages(true) %}
+{% if translated|length > 1 %}
+  {% for code, route in translated %}
+    <link rel="alternate" hreflang="{{ code }}" href="{{ uri.rootUrl(true) }}{{ grav.language.getLanguageURLPrefix(code) }}{{ page.home ? (code == grav.language.getDefault ? '/' : '') : route }}">
+  {% endfor %}
+  <link rel="alternate" hreflang="x-default" href="{{ uri.rootUrl(true) }}{{ page.home ? '/' : (translated[grav.language.getDefault] ?? '/') }}">
+{% endif %}

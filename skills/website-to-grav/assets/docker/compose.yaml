@@ -1,0 +1,19 @@
+# Usage (from the project folder that contains grav/user):
+#   LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose -f <skill>/assets/docker/compose.yaml --project-directory . up -d --build
+# Site http://127.0.0.1:8080 · Admin /admin · API /api/v1 · Mailpit http://127.0.0.1:8025
+name: grav-site
+services:
+  grav:
+    build:
+      context: ${SKILL_DOCKER_DIR:-.}
+    ports:
+      - "127.0.0.1:${SITE_PORT:-8080}:80"
+    environment:
+      LOCAL_UID: ${LOCAL_UID:-}
+      LOCAL_GID: ${LOCAL_GID:-}
+    volumes:
+      - ./grav/user:/var/www/html/user
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:${MAILPIT_PORT:-8025}:8025"

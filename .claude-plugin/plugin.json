@@ -1,0 +1,17 @@
+{
+  "name": "website-to-grav",
+  "description": "Convert any live website into a local Grav 2 site: same routes and content, blueprints, forms, analytics, a matching theme, and Admin2 + API + MCP wired for agents.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Djamil Legato"
+  },
+  "repository": "https://github.com/w00fz/grav-skills",
+  "license": "MIT",
+  "keywords": [
+    "grav",
+    "cms",
+    "migration",
+    "webflow",
+    "mcp"
+  ]
+}

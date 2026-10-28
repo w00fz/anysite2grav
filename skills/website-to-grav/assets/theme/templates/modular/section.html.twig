@@ -1,0 +1,16 @@
+{#
+  One horizontal section of a modular page. The module's frontmatter holds the same fields as an
+  entry in `sections` (anchor, classes, background, background_video, blocks), so it renders through
+  the shared partial. Kind templates (hero, cards, gallery, form) include this with {kind: …};
+  give a kind its own markup here once it gets named fields.
+#}
+{% set header = page.header %}
+{% include 'partials/sections.html.twig' with {sections: [{
+  type: 'section',
+  kind: kind ?? 'section',
+  id: header.anchor,
+  classes: header.classes,
+  background: header.background,
+  background_video: header.background_video,
+  blocks: header.blocks
+}], page: page} %}

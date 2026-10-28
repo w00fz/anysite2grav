@@ -1,0 +1,29 @@
+{% set footer = nav.footer ?? {} %}
+<footer class="site-footer">
+  <div class="container">
+    {% if footer.columns %}
+      <div class="site-footer__columns">
+        {% for column in footer.columns %}
+          <div class="site-footer__column">
+            {% if column.heading %}<h2 class="site-footer__heading">{{ column.heading }}</h2>{% endif %}
+            <ul>
+              {% for link in column.links ?? [] %}
+                <li><a href="{{ link.url }}">{{ link.label }}</a></li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <div class="site-footer__bottom">
+      <p class="site-footer__legal">{{ footer.legal ?: '© ' ~ 'now'|date('Y') ~ ' ' ~ site.title }}</p>
+      {% if footer.socials %}
+        <ul class="site-footer__socials">
+          {% for social in footer.socials %}
+            <li><a href="{{ social.url }}" rel="noopener" target="_blank" aria-label="{{ social.label ?: social.network|capitalize }}">{% include 'partials/social-icon.html.twig' with {network: social.network} %}</a></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,12 @@
+{% extends 'partials/base.html.twig' %}
+
+{# A page that owns a form definition (/forms/<name>). Visiting it directly shows the form;
+   other pages embed it through partials/form-embed.html.twig. #}
+{% block content %}
+  <section class="section">
+    <div class="container narrow">
+      {% if page.content|trim %}<div class="prose">{{ page.content|raw }}</div>{% endif %}
+      {% include 'forms/form.html.twig' with {form: forms({route: page.route})} %}
+    </div>
+  </section>
+{% endblock %}

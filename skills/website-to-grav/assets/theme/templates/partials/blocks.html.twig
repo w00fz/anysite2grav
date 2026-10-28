@@ -1,0 +1,72 @@
+{# One renderer per block type produced by extract_content.py. Keep markup semantic and unstyled here; style in css. #}
+{% for block in blocks ?? [] %}
+  {% set type = block.type %}
+  {% if type == 'heading' %}
+    {% set level = min(max(block.level|default(2), 1), 6) %}
+    <h{{ level }} class="block-heading">{{ block.text|markdown(false)|raw }}</h{{ level }}>
+  {% elseif type == 'text' %}
+    <p class="block-text">{{ block.text|markdown(false)|raw }}</p>
+  {% elseif type == 'quote' %}
+    <blockquote class="block-quote">{{ block.text|markdown|raw }}</blockquote>
+  {% elseif type == 'list' %}
+    {% set tag = block.ordered ? 'ol' : 'ul' %}
+    <{{ tag }} class="block-list">{% for item in block.items %}<li>{{ item|markdown(false)|raw }}</li>{% endfor %}</{{ tag }}>
+  {% elseif type == 'image' %}
+    {% set image = theme_media(block.src, page) %}
+    {% if image %}
+      {% set markup %}
+        {% if image.medium and image.medium.extension != 'svg' and image.medium.type == 'image' %}
+          {{ image.medium.derivatives(480, 1920, 480).sizes('(min-width: 1024px) 50vw, 100vw').loading('lazy').html(block.alt, block.alt, 'block-image')|raw }}
+        {% else %}
+          <img class="block-image" src="{{ image.url }}" alt="{{ block.alt }}" loading="lazy"{% if block.width %} width="{{ block.width }}"{% endif %}{% if block.height %} height="{{ block.height }}"{% endif %}>
+        {% endif %}
+      {% endset %}
+      {% if block.href %}<a class="block-image-link" href="{{ block.href }}">{{ markup }}</a>{% else %}{{ markup }}{% endif %}
+    {% endif %}
+  {% elseif type == 'video' %}
+    {% set poster = theme_media(block.poster, page) %}
+    <video class="block-video" playsinline {{ block.autoplay ? 'autoplay' }} {{ block.muted or block.autoplay ? 'muted' }} {{ block.loop ? 'loop' }} {{ not block.autoplay ? 'controls' }} {% if poster %}poster="{{ poster.url }}"{% endif %}>
+      {% for source in block.sources ?? [] %}{% set file = theme_media(source, page) %}{% if file %}<source src="{{ file.url }}">{% endif %}{% endfor %}
+    </video>
+  {% elseif type == 'embed' %}
+    <div class="block-embed"><iframe src="{{ block.src }}" title="{{ block.title ?: 'Embedded content' }}" loading="lazy" allowfullscreen></iframe></div>
+  {% elseif type == 'button' %}
+    {% if block.modal %}
+      <button type="button" class="btn btn--primary" data-modal-open="{{ block.modal }}">{{ block.label }}</button>
+    {% elseif block.href %}
+      <a class="btn btn--primary" href="{{ block.href }}">{{ block.label }}</a>
+    {% else %}
+      {# Label-only controls (tabs, toggles) from the source: wire behavior in js/site.js. #}
+      <button type="button" class="btn btn--ghost"{% if block.action %} data-action="{{ block.action }}"{% endif %}>{{ block.label }}</button>
+    {% endif %}
+  {% elseif type == 'cards' %}
+    <div class="cards cards--{{ block.cards|length }} {% for class in block.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}">
+      {% for item in block.cards %}
+        {% set tag = item.href ? 'a' : 'article' %}
+        <{{ tag }} class="card {% for class in item.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}"{% if item.href %} href="{{ item.href }}"{% endif %}>
+          {% include 'partials/blocks.html.twig' with {blocks: item.blocks, page: page} %}
+        </{{ tag }}>
+      {% endfor %}
+    </div>
+  {% elseif type == 'gallery' %}
+    <div class="gallery gallery--{{ block.style ?: 'photos' }}">
+      {% for item in block.images %}
+        {% set image = theme_media(item.src, page) %}
+        {% if image %}
+          {% set img %}<img src="{{ image.url }}" alt="{{ item.alt }}" loading="lazy">{% endset %}
+          {% if item.href %}<a href="{{ item.href }}">{{ img }}</a>{% else %}{{ img }}{% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% elseif type == 'table' %}
+    <div class="block-table"><table>
+      {% for row in block.rows %}<tr>{% for cell in row %}{% if loop.parent.loop.first %}<th>{{ cell }}</th>{% else %}<td>{{ cell }}</td>{% endif %}{% endfor %}</tr>{% endfor %}
+    </table></div>
+  {% elseif type == 'form' %}
+    {% include 'partials/form-embed.html.twig' with {name: block.form} %}
+  {% elseif type == 'body' %}
+    <div class="block-body prose">{{ page.content|raw }}</div>
+  {% elseif type == 'html' %}
+    {{ block.html|raw }}
+  {% endif %}
+{% endfor %}

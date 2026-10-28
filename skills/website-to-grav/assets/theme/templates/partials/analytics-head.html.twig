@@ -1,0 +1,11 @@
+{# Rendered only when theme_analytics_allowed(): analytics.enabled and the request host is in analytics.hosts. #}
+{% set analytics = config.theme.analytics %}
+{% if analytics.gtm %}
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','{{ analytics.gtm|e('js') }}');</script>
+{% endif %}
+{% if analytics.ga4 and not analytics.ga4_via_gtm %}
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ analytics.ga4|url_encode }}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','{{ analytics.ga4|e('js') }}');</script>
+{% endif %}
+{# Other ported snippets (Heap, Hotjar, HubSpot, Meta Pixel…) verbatim from the source, reviewed by a human. #}
+{{ analytics.head_snippets|raw }}

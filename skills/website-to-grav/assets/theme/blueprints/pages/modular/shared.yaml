@@ -1,0 +1,20 @@
+title: Shared section module
+# Renders a section kept once under /shared (newsletter bands, CTA strips) so edits apply everywhere.
+extends@:
+  type: default
+  context: blueprints://pages
+
+form:
+  fields:
+    tabs:
+      fields:
+        content:
+          fields:
+            content:
+              unset@: true
+            header.shared:
+              type: text
+              label: Shared section name
+              help: Folder name under /shared
+              validate:
+                required: true

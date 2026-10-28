@@ -1,0 +1,52 @@
+title: Section module
+# One horizontal section of a modular page. Hero, cards, gallery and form modules extend this;
+# promote a module kind to named fields when editors need them (see references/content-model.md).
+extends@:
+  type: default
+  context: blueprints://pages
+
+form:
+  fields:
+    tabs:
+      fields:
+        content:
+          fields:
+            content:
+              unset@: true
+        section:
+          type: tab
+          title: Section
+          ordering@: content
+          fields:
+            header.anchor:
+              type: text
+              label: Anchor id
+              help: Becomes the section id (for #links)
+            header.classes:
+              type: array
+              label: Style hooks
+              value_only: true
+              help: Rendered as src-<class> CSS hooks
+            header.background:
+              type: media
+              label: Background image
+              sources: [page, site, url]
+              accept: ['image/*']
+            header.background_video.sources:
+              type: array
+              label: Background video files
+              value_only: true
+              help: Autoplaying muted video behind the section content
+            header.background_video.poster:
+              type: media
+              label: Video poster
+              sources: [page, site, url]
+              accept: ['image/*']
+            header.blocks:
+              type: list
+              label: Blocks
+              style: vertical
+              collapsed: true
+              import@:
+                type: partials/block-fields
+                context: blueprints://pages

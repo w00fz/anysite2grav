@@ -1,0 +1,13 @@
+{#
+  Render a form defined on /forms/<name> anywhere on the site. The form's own `action`
+  points back to its page, so validation, CAPTCHA and processing always run there.
+#}
+{% set form_page = grav.pages.find('/forms/' ~ name) %}
+{% if form_page %}
+  {% set embedded_form = forms({route: form_page.route}) %}
+  {% if embedded_form %}
+    <div class="form-embed" data-form="{{ name }}">
+      {% include 'forms/form.html.twig' with {form: embedded_form, page: form_page} %}
+    </div>
+  {% endif %}
+{% endif %}

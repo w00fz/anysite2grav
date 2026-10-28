@@ -1,0 +1,8 @@
+{% extends 'partials/base.html.twig' %}
+
+{% block content %}
+  {% include 'partials/sections.html.twig' with {sections: page.header.sections, page: page} %}
+  {% if page.content|trim and not page.header.body_slot %}
+    <section class="section"><div class="container prose">{{ page.content|raw }}</div></section>
+  {% endif %}
+{% endblock %}

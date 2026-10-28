@@ -1,0 +1,109 @@
+# Fields of one entry in a `blocks` list, shared by the Sections page type and every section
+# module (imported with import@). Keep in step with templates/partials/blocks.html.twig.
+form:
+  fields:
+    .type:
+      type: select
+      label: Block
+      options:
+        heading: Heading
+        text: Text
+        list: List
+        quote: Quote
+        image: Image
+        video: Video
+        embed: Embed (iframe)
+        button: Button
+        cards: Cards
+        gallery: Gallery / logo strip
+        table: Table
+        form: Form
+        html: Raw HTML
+        body: Page content (Markdown body)
+    .level:
+      type: select
+      label: Heading level
+      options: {1: H1, 2: H2, 3: H3, 4: H4, 5: H5, 6: H6}
+    .text:
+      type: textarea
+      label: Text (Markdown)
+    .items:
+      type: array
+      label: List items
+      value_only: true
+    .src:
+      type: media
+      label: Image
+      sources: [page, site, url]
+      accept: ['image/*']
+    .alt:
+      type: text
+      label: Alt text
+    .label:
+      type: text
+      label: Button label
+    .href:
+      type: text
+      label: Link
+    .modal:
+      type: text
+      label: Opens modal (shared section name)
+    .form:
+      type: text
+      label: Form name (/forms/<name>)
+    .html:
+      type: textarea
+      label: Raw HTML
+    .style:
+      type: select
+      label: Gallery style
+      options: {photos: Photos, logos: Logos}
+    .images:
+      type: list
+      label: Gallery images
+      collapsed: true
+      fields:
+        .src: {type: media, label: Image, sources: [page, site, url], accept: ['image/*']}
+        .alt: {type: text, label: Alt text}
+        .href: {type: text, label: Link}
+    .cards:
+      type: list
+      label: Cards
+      collapsed: true
+      fields:
+        .href:
+          type: text
+          label: Card link
+        .blocks:
+          type: list
+          label: Card content
+          fields:
+            .type:
+              type: select
+              label: Block
+              options: {heading: Heading, text: Text, list: List, image: Image, button: Button}
+            .level:
+              type: select
+              label: Heading level
+              options: {2: H2, 3: H3, 4: H4, 5: H5, 6: H6}
+            .text:
+              type: textarea
+              label: Text (Markdown)
+            .items:
+              type: array
+              label: List items
+              value_only: true
+            .src:
+              type: media
+              label: Image
+              sources: [page, site, url]
+              accept: ['image/*']
+            .alt:
+              type: text
+              label: Alt text
+            .label:
+              type: text
+              label: Button label
+            .href:
+              type: text
+              label: Link

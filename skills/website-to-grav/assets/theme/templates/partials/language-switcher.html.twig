@@ -1,0 +1,19 @@
+{# Native Grav multilang: only offer languages this page is translated into. #}
+{% set translated = page.translatedLanguages(true) %}
+{% if grav.language.enabled and translated|length > 1 %}
+  <div class="lang-switcher" data-dropdown>
+    <button type="button" class="lang-switcher__toggle" aria-expanded="false" data-dropdown-toggle>
+      {{ lang|upper }}
+      <span class="chevron" aria-hidden="true"></span>
+    </button>
+    <ul class="lang-switcher__menu">
+      {% for code, route in translated %}
+        <li>
+          <a href="{{ base_url_simple }}{{ grav.language.getLanguageURLPrefix(code) }}{{ page.home ? (code == grav.language.getDefault ? '/' : '') : route }}" hreflang="{{ code }}" lang="{{ code }}" {{ code == lang ? 'aria-current="true"' }}>
+            {{ config.theme.language_labels[code] ?? code|upper }}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}

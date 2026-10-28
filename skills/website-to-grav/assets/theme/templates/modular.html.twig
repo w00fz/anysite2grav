@@ -1,0 +1,8 @@
+{% extends 'partials/base.html.twig' %}
+
+{# Modular page: every child module (NN._name folder) renders through templates/modular/<kind>.html.twig. #}
+{% block content %}
+  {% for module in page.collection() %}
+    {{ module.content|raw }}
+  {% endfor %}
+{% endblock %}

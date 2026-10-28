@@ -1,0 +1,28 @@
+{# Every modal section used by this page (own or shared) becomes one <dialog id="modal-<name>">. #}
+{% set modals = [] %}
+{% for section in page.header.sections ?? [] %}
+  {% if section.type == 'shared' %}
+    {% set shared = shared_section_page(section.shared) %}
+    {% for inner in shared.header.sections ?? [] %}
+      {% if inner.modal %}{% set modals = modals|merge([{name: section.shared, section: inner, page: shared}]) %}{% endif %}
+    {% endfor %}
+  {% elseif section.modal %}
+    {% set modals = modals|merge([{name: section.id ?: 'page-' ~ loop.index, section: section, page: page}]) %}
+  {% endif %}
+{% endfor %}
+{% for modal in config.theme.global_modals ?? [] %}
+  {% set shared = shared_section_page(modal) %}
+  {% if shared and modal not in modals|column('name') %}
+    {% for inner in shared.header.sections ?? [] %}
+      {% set modals = modals|merge([{name: modal, section: inner, page: shared}]) %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+{% for modal in modals %}
+  <dialog class="modal" id="modal-{{ modal.name }}" aria-label="{{ modal.page.title }}">
+    <form method="dialog" class="modal__close-form"><button class="modal__close" aria-label="{{ 'THEME_CLOSE'|t }}">×</button></form>
+    <div class="modal__body">
+      {% include 'partials/blocks.html.twig' with {blocks: modal.section.blocks, page: modal.page} %}
+    </div>
+  </dialog>
+{% endfor %}

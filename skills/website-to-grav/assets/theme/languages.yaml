@@ -1,0 +1,28 @@
+en:
+  THEME_SKIP_TO_CONTENT: Skip to content
+  THEME_MENU: Menu
+  THEME_CLOSE: Close
+es:
+  THEME_SKIP_TO_CONTENT: Saltar al contenido
+  THEME_MENU: Menú
+  THEME_CLOSE: Cerrar
+fr:
+  THEME_SKIP_TO_CONTENT: Aller au contenu
+  THEME_MENU: Menu
+  THEME_CLOSE: Fermer
+nl:
+  THEME_SKIP_TO_CONTENT: Naar de inhoud
+  THEME_MENU: Menu
+  THEME_CLOSE: Sluiten
+de:
+  THEME_SKIP_TO_CONTENT: Zum Inhalt springen
+  THEME_MENU: Menü
+  THEME_CLOSE: Schließen
+it:
+  THEME_SKIP_TO_CONTENT: Vai al contenuto
+  THEME_MENU: Menu
+  THEME_CLOSE: Chiudi
+pt:
+  THEME_SKIP_TO_CONTENT: Ir para o conteúdo
+  THEME_MENU: Menu
+  THEME_CLOSE: Fechar

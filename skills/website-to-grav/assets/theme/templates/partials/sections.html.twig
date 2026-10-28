@@ -1,0 +1,35 @@
+{#
+  Renders `sections` (page.header.sections). Each section keeps its source classes as
+  `src-<class>` hooks so the theme can style source variants (e.g. .src-dark, .src-hero-banner)
+  without colliding with utility classes. Shared sections render from /shared/<name>; modals
+  render once in partials/modals.html.twig. Modules of a modular page render through the same
+  partial (templates/modular/*.html.twig) and add a `module--<kind>` class.
+  Usage: {% include 'partials/sections.html.twig' with {sections: page.header.sections, page: page} %}
+#}
+{% for section in sections ?? [] %}
+  {% if section.type == 'shared' %}
+    {% set shared = shared_section_page(section.shared) %}
+    {% if shared %}
+      {% include 'partials/sections.html.twig' with {sections: shared.header.sections|filter(inner => not inner.modal), page: shared} %}
+    {% endif %}
+  {% elseif section.type == 'body' %}
+    <section{% if section.id %} id="{{ section.id }}"{% endif %} class="section section--body {% for class in section.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}">
+      <div class="container prose">{{ page.content|raw }}</div>
+    </section>
+  {% elseif not section.modal %}
+    {% set background = theme_media(section.background, page) %}
+    <section{% if section.id %} id="{{ section.id }}"{% endif %}
+      class="section {{ section.kind ? 'module--' ~ section.kind }} {% for class in section.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}{{ background ? 'section--background' }} {{ section.background_video ? 'section--video' }}"
+      {% if background %}style="--section-background: url('{{ background.url }}')"{% endif %}>
+      {% if section.background_video %}
+        {% set poster = theme_media(section.background_video.poster, page) %}
+        <video class="section__video" autoplay muted loop playsinline aria-hidden="true" {% if poster %}poster="{{ poster.url }}"{% endif %}>
+          {% for source in section.background_video.sources ?? [] %}{% set file = theme_media(source, page) %}{% if file %}<source src="{{ file.url }}">{% endif %}{% endfor %}
+        </video>
+      {% endif %}
+      <div class="container section__inner">
+        {% include 'partials/blocks.html.twig' with {blocks: section.blocks, page: page} %}
+      </div>
+    </section>
+  {% endif %}
+{% endfor %}
