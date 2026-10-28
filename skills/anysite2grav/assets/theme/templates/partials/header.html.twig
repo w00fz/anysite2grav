@@ -3,7 +3,9 @@
   <div class="container site-header__bar">
     <a class="site-header__logo" href="{{ base_url == '' ? '/' : base_url }}{{ prefix }}" aria-label="{{ site.title }}">
       {% set logo = theme_media(config.theme.logo) %}
-      {% if logo %}<img src="{{ logo.url }}" alt="{{ site.title }}">{% else %}{{ site.title }}{% endif %}
+      {# Theme SVG logos render inline so currentColor follows the header color. #}
+      {% if config.theme.logo starts with 'theme://' and config.theme.logo ends with '.svg' %}{{ svg_image(config.theme.logo, 'site-header__logo-svg')|raw }}
+      {% elseif logo %}<img src="{{ logo.url }}" alt="{{ site.title }}">{% else %}{{ site.title }}{% endif %}
     </a>
 
     <button class="site-header__toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>

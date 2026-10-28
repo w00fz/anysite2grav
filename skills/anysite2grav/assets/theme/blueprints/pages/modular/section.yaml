@@ -22,6 +22,16 @@ form:
               type: text
               label: Anchor id
               help: Becomes the section id (for #links)
+            header.tone:
+              type: select
+              label: Tone
+              help: Background and text colors from the theme palette (tokens.css)
+              options: {'': Page default, light: Light, muted: Muted, dark: Dark, accent: Accent}
+            header.space:
+              type: select
+              label: Spacing
+              help: Vertical padding step from the theme scale (tokens.css → --space-*)
+              options: {'': Theme default, none: None, s: Small, m: Medium, l: Large, xl: Extra large}
             header.classes:
               type: array
               label: Style hooks

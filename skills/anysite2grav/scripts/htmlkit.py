@@ -115,10 +115,35 @@ class Node:
             self.parent.children = [child for child in self.parent.children if child is not self]
             self.parent = None
 
+    def html(self) -> str:
+        """Serialize back to markup (used for inline SVG logos). html.parser lowercases names, so
+        SVG's camelCase tags and attributes are restored; otherwise a standalone .svg won't scale."""
+        tag = SVG_CASE.get(self.tag, self.tag)
+        attrs = "".join(
+            f' {SVG_CASE.get(name, name)}' + ("" if value is None else f'="{html.escape(value, quote=True)}"')
+            for name, value in self.attrs.items()
+        )
+        if self.tag in VOID_TAGS:
+            return f"<{tag}{attrs}>"
+        inner = "".join(
+            child.html() if isinstance(child, Node) else (child if self.tag in RAW_TEXT_TAGS else html.escape(child, quote=False))
+            for child in self.children
+        )
+        if not inner and self.tag not in ("script", "div", "span", "a"):
+            return f"<{tag}{attrs}/>"
+        return f"<{tag}{attrs}>{inner}</{tag}>"
+
     def outer_signature(self) -> str:
         """Short structural fingerprint used to detect repeated site chrome."""
         return f"{self.tag}#{self.get('id')}.{'.'.join(sorted(self.classes))}"
 
+
+SVG_CASE = {name.lower(): name for name in (
+    "viewBox", "preserveAspectRatio", "gradientUnits", "gradientTransform", "patternUnits", "patternTransform",
+    "clipPathUnits", "maskUnits", "maskContentUnits", "stdDeviation", "textLength", "lengthAdjust", "spreadMethod",
+    "linearGradient", "radialGradient", "clipPath", "foreignObject", "textPath", "feGaussianBlur", "feOffset",
+    "feBlend", "feColorMatrix", "feComposite", "feFlood", "feMerge", "feMergeNode",
+)}
 
 BLOCK_TAGS = {
     "address", "article", "aside", "blockquote", "dd", "div", "dl", "dt", "fieldset", "figcaption",

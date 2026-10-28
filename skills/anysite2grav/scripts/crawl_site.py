@@ -8,6 +8,7 @@ omit pages from the sitemap or publish none at all.
 Usage:
   crawl_site.py https://example.com --out migration [--max-pages 1500] [--workers 4]
                 [--alias www.example.com] [--keep-query page] [--exclude '^/blog/tag/']
+                [--include '^/(about|pricing)?$'] [--max-depth 1] [--no-sitemaps]
 
 Writes:
   <out>/routes.json   route inventory (status, redirects, lang, hreflang, meta, links)
@@ -29,7 +30,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+from urllib.parse import urljoin, urlsplit, urlunsplit, parse_qsl, urlencode
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from htmlkit import (  # noqa: E402
@@ -65,11 +66,14 @@ def fetch(url: str, *, timeout: int = 30, max_redirects: int = 8):
         except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
             return {"url": current, "status": 0, "error": str(error), "chain": chain, "headers": {}, "body": b""}
         if status in (301, 302, 303, 307, 308) and headers.get("Location"):
-            target = normalize_url(headers["Location"], current, keep_query=True)
+            # Follow the raw Location: normalizing it (e.g. stripping a trailing slash) can loop
+            # forever on servers that redirect /about → /about/. The chain records the normalized form.
+            raw_target = urljoin(current, headers["Location"].strip())
+            target = normalize_url(raw_target, current, keep_query=True)
             chain.append({"from": current, "to": target, "status": status})
-            if not target:
+            if not target or raw_target == current:
                 break
-            current = target
+            current = raw_target
             continue
         if headers.get("Content-Encoding") == "gzip":
             body = gzip.decompress(body)
@@ -183,6 +187,9 @@ def main() -> int:
     parser.add_argument("--alias", action="append", default=[], help="extra hostnames that belong to the same site")
     parser.add_argument("--keep-query", action="append", default=[], help="query keys to keep (e.g. pagination like page or _page suffix)")
     parser.add_argument("--exclude", action="append", default=[], help="regex of routes to skip")
+    parser.add_argument("--include", action="append", default=[], help="regex of routes to keep (allow-list); the start URL is always kept")
+    parser.add_argument("--max-depth", type=int, default=None, help="stop following links this many clicks from the start page")
+    parser.add_argument("--no-sitemaps", action="store_true", help="don't seed from sitemaps (scoped crawls: menu pages only, one section)")
     args = parser.parse_args()
 
     start = normalize_url(args.url, args.url)
@@ -192,13 +199,20 @@ def main() -> int:
     sites = {site, *(site_key(alias) for alias in args.alias)}
     keep_query = set(args.keep_query)
     excludes = [re.compile(pattern) for pattern in args.exclude]
+    includes = [re.compile(pattern) for pattern in args.include]
+
+    def wanted(url: str) -> bool:
+        route = route_of(url)
+        if any(pattern.search(route) for pattern in excludes):
+            return False
+        return not includes or any(pattern.search(route) for pattern in includes)
     out = Path(args.out)
     (out / "html").mkdir(parents=True, exist_ok=True)
 
     robots = fetch(f"{origin}/robots.txt")
     robots_text = decode(robots["body"], robots["headers"]) if robots["status"] == 200 else ""
     robots_sitemaps = re.findall(r"(?im)^\s*sitemap:\s*(\S+)", robots_text)
-    from_sitemap, sitemap_files = sitemap_urls(origin, robots_sitemaps)
+    from_sitemap, sitemap_files = ([], []) if args.no_sitemaps else sitemap_urls(origin, robots_sitemaps)
 
     # A random path reveals soft-404 pages that answer 200 (common on site builders).
     probe_path = "/" + "".join(random.choices(string.ascii_lowercase, k=18))
@@ -207,7 +221,9 @@ def main() -> int:
 
     queue = [start] + [normalize_url(url, origin, keep_query=True) for url in from_sitemap]
     queue = [strip_query(url, keep_query) for url in queue if url]
+    queue = queue[:1] + [url for url in queue[1:] if wanted(url)]
     queued = set(queue)
+    depth = {url: 0 for url in queue}
     sitemap_routes = {route_of(url) for url in queue[1:]}
     records: dict[str, dict] = {}
     canonical_hosts = set()
@@ -238,13 +254,15 @@ def main() -> int:
                 record["in_sitemap"] = route_of(record["requested"]) in sitemap_routes
                 if probe_record and record.get("fingerprint") == probe_record["fingerprint"] and record.get("route") != "/":
                     record["soft_404"] = True
+                next_depth = depth.get(record["requested"], 0) + 1
+                if args.max_depth is not None and next_depth > args.max_depth:
+                    continue
                 for link in record.get("links", []):
                     host = site_key(urlsplit(link).hostname or "")
-                    if host not in sites or link in queued:
-                        continue
-                    if any(pattern.search(route_of(link)) for pattern in excludes):
+                    if host not in sites or link in queued or not wanted(link):
                         continue
                     queued.add(link)
+                    depth[link] = next_depth
                     queue.append(link)
             print(f"crawled {len(records)} / queued {len(queue)}", file=sys.stderr)
 

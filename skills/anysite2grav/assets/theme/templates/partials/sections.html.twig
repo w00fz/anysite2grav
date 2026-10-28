@@ -19,7 +19,7 @@
   {% elseif not section.modal %}
     {% set background = theme_media(section.background, page) %}
     <section{% if section.id %} id="{{ section.id }}"{% endif %}
-      class="section {{ section.kind ? 'module--' ~ section.kind }} {% for class in section.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}{{ background ? 'section--background' }} {{ section.background_video ? 'section--video' }}"
+      class="section {{ section.kind ? 'module--' ~ section.kind }} {{ section.tone ? 'tone-' ~ section.tone }} {{ section.space ? 'space-' ~ section.space }} {{ section.role ? 'section--' ~ section.role }} {% for class in section.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}{{ background ? 'section--background' }} {{ section.background_video ? 'section--video' }}"
       {% if background %}style="--section-background: url('{{ background.url }}')"{% endif %}>
       {% if section.background_video %}
         {% set poster = theme_media(section.background_video.poster, page) %}

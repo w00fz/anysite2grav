@@ -28,41 +28,17 @@ import shutil
 import subprocess
 import sys
 import urllib.request
+from collections import Counter
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from csskit import GENERATED_CLASS, TONES, css_blocks, luminance, parse_color, to_hex  # noqa: E402
 from gravkit import get_config, merge_config, yaml_dump  # noqa: E402
 from htmlkit import read_json, route_of, site_key, slugify, write_json  # noqa: E402
 
 SKELETON = Path(__file__).resolve().parent.parent / "assets" / "theme"
 TAILWIND_VERSION = "4.3.3"
-
-
-def parse_color(value: str):
-    value = value.strip().lower()
-    match = re.fullmatch(r"#([0-9a-f]{3}|[0-9a-f]{6})", value)
-    if match:
-        digits = match.group(1)
-        if len(digits) == 3:
-            digits = "".join(character * 2 for character in digits)
-        return tuple(int(digits[index:index + 2], 16) for index in (0, 2, 4)), 1.0
-    match = re.fullmatch(r"rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)", value.replace(" ", "").replace(",", ", "))
-    if match:
-        return tuple(int(float(match.group(index))) for index in (1, 2, 3)), float(match.group(4) or 1)
-    return None, 0
-
-
-def to_hex(rgb) -> str:
-    return "#" + "".join(f"{channel:02x}" for channel in rgb)
-
-
-def luminance(rgb) -> float:
-    def channel(value):
-        value /= 255
-        return value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
-    red, green, blue = (channel(value) for value in rgb)
-    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
 
 
 def tokens_from_digest(audit: dict) -> dict:
@@ -104,11 +80,49 @@ def tokens_from_digest(audit: dict) -> dict:
         "container": f"{max(widths) if widths else 1200}px",
         "gutter": "clamp(1rem, 5vw, 3rem)",
         "section-space": "clamp(3rem, 8vw, 7rem)",
+        "space-s": "clamp(1rem, 2vw, 1.5rem)",
+        "space-m": "clamp(2rem, 4vw, 3rem)",
+        "space-l": "clamp(3rem, 6vw, 5rem)",
+        "space-xl": "clamp(4rem, 9vw, 8rem)",
         "card-gap": "1.5rem",
     }
 
 
 THEME_NAMESPACES = ("color-", "font-", "text-", "radius")
+
+
+def tone_tokens(migration: Path, tokens: dict) -> dict:
+    """One background per section tone: the source's most used color for that tone.
+
+    Sections carry `tone: light|muted|dark|accent` instead of builder classes, so every page shares
+    the same few backgrounds and editors pick a tone in Admin rather than a hex value.
+    """
+    seen: dict[str, Counter] = {tone: Counter() for tone in TONES}
+
+    def collect(section: dict):
+        if section.get("tone") in seen and section.get("background_color"):
+            seen[section["tone"]][section["background_color"]] += 1
+
+    for content_file in (migration / "content").glob("*.json"):
+        for section in read_json(content_file).get("sections", []):
+            collect(section)
+    if (migration / "shared-sections.json").exists():
+        for section in read_json(migration / "shared-sections.json").values():
+            collect(section)
+    fallback = {
+        "light": tokens.get("color-background", "#ffffff"),
+        "muted": "#f2f2f2",
+        "dark": tokens.get("color-text", "#111111"),
+        "accent": tokens.get("color-primary", "#2563eb"),
+    }
+    result = {}
+    for tone in TONES:
+        background = seen[tone].most_common(1)[0][0] if seen[tone] else fallback[tone]
+        rgb, _ = parse_color(background)
+        light = luminance(rgb) > 0.4 if rgb else tone in ("light", "muted")
+        result[f"tone-{tone}-bg"] = background
+        result[f"tone-{tone}-text"] = tokens.get("color-text", "#111111") if light else "#ffffff"
+    return result
 
 
 def tokens_css(tokens: dict, tailwind: bool) -> str:
@@ -161,23 +175,6 @@ def font_faces(migration: Path, theme: Path, mode: str) -> tuple[str, list[str]]
     return "\n".join(rules) + ("\n" if rules else ""), notes
 
 
-def css_blocks(css: str):
-    """Yield (prelude, body) for top-level CSS blocks, keeping one level of @media nesting."""
-    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-    position, length = 0, len(css)
-    while position < length:
-        brace = css.find("{", position)
-        if brace == -1:
-            return
-        prelude = css[position:brace].strip()
-        depth, cursor = 1, brace + 1
-        while cursor < length and depth:
-            depth += {"{": 1, "}": -1}.get(css[cursor], 0)
-            cursor += 1
-        yield prelude, css[brace + 1:cursor - 1]
-        position = cursor
-
-
 SIMPLE_CLASS_SELECTOR = re.compile(r"^((?:\.[A-Za-z_][\w-]*)+)((?::{1,2}[\w-]+(?:\([^)]*\))?)*)$")
 
 
@@ -191,7 +188,20 @@ def port_source_css(migration: Path, theme: Path, classes: set[str]) -> tuple[st
     if not index_file.exists():
         return "", 0
     (theme / "images" / "source").mkdir(parents=True, exist_ok=True)
-    output, ported, root_vars = [], 0, []
+    # Every rule once: builders and WordPress repeat the same stylesheet (or inline block) on every
+    # page, and copying per page produced hundreds of near-identical files. @media groups merge.
+    rules: dict[str, list[str]] = {"": []}
+    seen: set[tuple[str, str]] = set()
+    ported, root_vars = 0, []
+
+    def keep(media: str, rule: str) -> bool:
+        nonlocal ported
+        if (media, rule) in seen:
+            return False
+        seen.add((media, rule))
+        rules.setdefault(media, []).append(rule)
+        ported += 1
+        return True
 
     def rewrite_urls(body: str, css_url: str) -> str:
         def replace(match):
@@ -229,17 +239,19 @@ def port_source_css(migration: Path, theme: Path, classes: set[str]) -> tuple[st
             if prelude == ":root":
                 root_vars.extend(declaration.strip() for declaration in body.split(";") if declaration.strip().startswith("--"))
             elif prelude.startswith("@media"):
-                inner = [rule for rule in (convert(inner_prelude, inner_body, css_url) for inner_prelude, inner_body in css_blocks(body)) if rule]
-                if inner:
-                    output.append(f"{prelude} {{\n  " + "\n  ".join(inner) + "\n}")
-                    ported += len(inner)
+                media = " ".join(prelude.split())
+                for inner_prelude, inner_body in css_blocks(body):
+                    rule = convert(inner_prelude, inner_body, css_url)
+                    if rule:
+                        keep(media, rule)
             elif not prelude.startswith("@"):
                 rule = convert(prelude, body, css_url)
                 if rule:
-                    output.append(rule)
-                    ported += 1
+                    keep("", rule)
     header = "/* Ported from the source stylesheet: rules for section/card classes, mapped to .src-* hooks.\n   Regenerated by scaffold_theme.py --force; put hand edits in components.css or a later file. */\n"
     variables = (":root {\n  " + ";\n  ".join(dict.fromkeys(root_vars)) + ";\n}\n") if root_vars else ""
+    output = rules.pop("")
+    output += [f"{media} {{\n  " + "\n  ".join(inner) + "\n}" for media, inner in rules.items()]
     return header + variables + "\n".join(output) + "\n", ported
 
 
@@ -249,7 +261,7 @@ def section_classes(migration: Path) -> set[str]:
     def walk_blocks(blocks):
         for block in blocks or []:
             classes.update(block.get("classes", []))
-            for card in block.get("cards", []):
+            for card in block.get("cards", []) + block.get("columns", []):
                 classes.update(card.get("classes", []))
                 walk_blocks(card.get("blocks"))
 
@@ -261,7 +273,9 @@ def section_classes(migration: Path) -> set[str]:
         for section in read_json(migration / "shared-sections.json").values():
             classes.update(section.get("classes", []))
             walk_blocks(section.get("blocks"))
-    return {name for name in classes if not name.startswith("w-node-")}
+    # Per-page generated names (Webflow w-node-*, WordPress wp-container-*/wp-elements-*) are not
+    # design: porting them only duplicates layout rules.
+    return {name for name in classes if not GENERATED_CLASS.search(name)}
 
 
 def localize(url: str | None, site: str) -> str | None:
@@ -441,7 +455,13 @@ def main() -> int:
         defaults_path.write_text(yaml_dump({"enabled": True, "noindex_hosts": ["localhost", "127.0.0.1"], "analytics": {"enabled": False, "hosts": []}}) + "\n", encoding="utf-8")
 
     default_chrome = chrome.get(page_map.get("default_lang", "en")) or next(iter(chrome.values()), {})
-    logo = theme_asset((default_chrome.get("logo") or {}).get("src"), manifest, theme) if default_chrome.get("logo") else None
+    source_logo = default_chrome.get("logo") or {}
+    if source_logo.get("svg"):
+        (theme / "images").mkdir(parents=True, exist_ok=True)
+        (theme / "images" / "logo.svg").write_text(source_logo["svg"] + "\n", encoding="utf-8")
+        logo = "theme://images/logo.svg"
+    else:
+        logo = theme_asset(source_logo.get("src"), manifest, theme) if source_logo.get("src") else None
     labels = {}
     for summary in chrome.values():
         for entry in summary.get("languages", []):
@@ -493,6 +513,7 @@ def main() -> int:
     tokens = tokens_from_digest(audit)
     if tokens_file.exists():
         tokens.update(read_json(tokens_file).get("tokens", {}))
+    tokens.update(tone_tokens(migration, tokens))
     # A transparent source header (over a hero image/video) measures as "no background": fall back to
     # page colors so the generated header is legible, then style the overlay variant by hand.
     light_logo = bool(re.search(r"white|light|inverse|reverse", logo or "", re.I))

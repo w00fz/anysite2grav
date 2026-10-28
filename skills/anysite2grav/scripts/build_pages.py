@@ -214,6 +214,8 @@ class Builder:
                 block["images"] = [{**image, "src": self.media_ref(image["src"], page_folder), **({"href": self.local_link(image["href"])} if image.get("href") else {})} for image in block["images"]]
             if block.get("type") == "cards":
                 block["cards"] = [{**card, "blocks": self.rewrite_blocks(card["blocks"], page_folder), **({"href": self.local_link(card["href"])} if card.get("href") else {})} for card in block["cards"]]
+            if block.get("type") == "columns":
+                block["columns"] = [{**column, "blocks": self.rewrite_blocks(column["blocks"], page_folder)} for column in block["columns"]]
             if block.get("type") == "form":
                 block["form"] = self.form_names.get(block.pop("ref"), block.get("ref"))
             output.append({key: value for key, value in block.items() if value not in (None, "", [])})
@@ -226,12 +228,13 @@ class Builder:
             return bool(self.shared.get(section["shared"], {}).get("modal"))
         return bool(section.get("modal"))
 
-    def module_kind(self, section: dict, position: int) -> str:
+    def module_kind(self, section: dict, lead: bool) -> str:
+        """lead: the first visible section after any section menu, the only hero candidate."""
         if "shared" in section:
             return "shared"
         blocks = section.get("blocks", [])
         types = {block["type"] for block in blocks}
-        if position == 0 and (section.get("backgrounds") or section.get("background_video") or any(block["type"] == "heading" and block.get("level") == 1 for block in blocks)):
+        if lead and (section.get("backgrounds") or section.get("background_video") or any(block["type"] == "heading" and block.get("level") == 1 for block in blocks)):
             return "hero"
         if "form" in types:
             return "form"
@@ -252,14 +255,17 @@ class Builder:
         if len(visible) <= self.args.modular_threshold or any(section.get("body") for section in visible):
             return None
         plan, used = [], set()
+        lead = self.lead_index(visible)
         for position, section in enumerate(visible):
-            kind = self.module_kind(section, position)
+            kind = self.module_kind(section, position == lead)
             if kind == "shared":
                 name = self.shared_names.get(section["shared"], "shared")
             elif kind == "hero":
                 name = "hero"
+            elif section.get("role") == "subnav":
+                name = "subnav"
             else:
-                heading = next((block["text"] for block in section.get("blocks", []) if block["type"] == "heading"), None)
+                heading = first_heading(section.get("blocks", []))
                 name = slugify(plain_text(heading), "")[:32].strip("-") or section.get("id") or kind
             base, counter = name, 2
             while name in used:
@@ -267,6 +273,10 @@ class Builder:
             used.add(name)
             plan.append((f"{position + 1:02d}._{name}", kind))
         return plan
+
+    @staticmethod
+    def lead_index(visible: list[dict]) -> int:
+        return next((index for index, section in enumerate(visible) if section.get("role") != "subnav"), 0)
 
     def section_entry(self, section: dict, folder: Path) -> dict:
         if "shared" in section:
@@ -277,6 +287,9 @@ class Builder:
             "type": "section",
             "id": section.get("id"),
             "classes": section.get("classes"),
+            "tone": section.get("tone"),
+            "space": section.get("space"),
+            "role": section.get("role"),
             "modal": section.get("modal") or None,
             "background": self.media_ref(section["backgrounds"][0], folder) if section.get("backgrounds") else None,
             "background_video": self.rewrite_blocks([section["background_video"]], folder)[0] if section.get("background_video") else None,
@@ -298,17 +311,20 @@ class Builder:
                     module_folder_name, kind = plan[position]
                 else:
                     # A translation with more sections than the default language keeps them, in order.
-                    kind = self.module_kind(section, position)
+                    kind = self.module_kind(section, position == self.lead_index(visible))
                     module_folder_name = f"{position + 1:02d}._{kind}-{position + 1}"
                 module_folder = folder / module_folder_name
                 entry = self.section_entry(section, module_folder)
-                heading = next((block["text"] for block in entry.get("blocks", []) if block["type"] == "heading"), None)
+                heading = first_heading(entry.get("blocks", []))
                 title = plain_text(heading)[:80]
                 header = {"title": title or module_folder_name.split("._", 1)[1].replace("-", " ").capitalize()}
                 if kind == "shared":
                     header["shared"] = entry["shared"]
                 else:
-                    header.update({"anchor": entry.get("id"), "classes": entry.get("classes"), "background": entry.get("background"), "background_video": entry.get("background_video"), "blocks": entry.get("blocks")})
+                    header.update({key: entry.get(field) for key, field in (
+                        ("anchor", "id"), ("tone", "tone"), ("space", "space"), ("role", "role"), ("classes", "classes"),
+                        ("background", "background"), ("background_video", "background_video"), ("blocks", "blocks"),
+                    )})
                 target = module_folder / self.file_name(kind, lang)
                 if not self.args.dry_run:
                     for stale in module_folder.glob(f"*.{lang}.md" if self.mode == "native" else "*.md"):
@@ -457,7 +473,7 @@ class Builder:
             name = self.shared_names[shared_id]
             folder = self.pages_dir / "shared" / name
             lang = section["lang"] if self.mode == "native" else self.default_lang
-            shared_section = {"type": "section", "classes": section["classes"], "modal": section.get("modal") or None, "blocks": self.rewrite_blocks(section["blocks"], None)}
+            shared_section = {"type": "section", "classes": section["classes"], "tone": section.get("tone"), "modal": section.get("modal") or None, "blocks": self.rewrite_blocks(section["blocks"], None)}
             heading = next((block.get("text") for block in section["blocks"] if block["type"] == "heading"), None)
             header = {"title": re.sub(r"[*\[\]]|\(.*?\)", "", heading).strip() if heading else name.replace("-", " ").capitalize(), "routable": False, "visible": False, "sections": [{key: value for key, value in shared_section.items() if value is not None}], "used_on": section["routes"]}
             if not self.args.dry_run:
@@ -499,6 +515,18 @@ class Builder:
         if not hasattr(self, "_shared_names"):
             self._shared_names = self.shared_ids()
         return self._shared_names
+
+
+def first_heading(blocks: list[dict]) -> str | None:
+    """First heading text, looking inside columns and cards (side-by-side layouts put it there)."""
+    for block in blocks:
+        if block.get("type") == "heading":
+            return block.get("text")
+        for inner in block.get("columns", []) + block.get("cards", []):
+            found = first_heading(inner.get("blocks", []))
+            if found:
+                return found
+    return None
 
 
 def plain_text(markdown: str | None) -> str:

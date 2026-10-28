@@ -15,7 +15,9 @@ Identify the platform from `audit.md` ("platform" rows) or the `generator` meta 
 
 ## WordPress
 
-- `wp-sitemap.xml` or Yoast/RankMath `sitemap_index.xml` (robots.txt lists it). Content in `.entry-content`/`.wp-block-*`: mostly articles → Markdown bodies.
+- `wp-sitemap.xml` or Yoast/RankMath `sitemap_index.xml` (robots.txt lists it). Posts and legal pages are articles → Markdown bodies.
+- Block themes (Gutenberg/FSE) wrap the whole page in `.wp-site-blocks` beside a skip link, mark `<main>` itself `.entry-content`, and build composed pages from `.wp-block-group.alignfull` bands. The extractor splits those bands into sections, `.wp-block-columns` into `columns`, `.wp-block-navigation` menus into chrome, and reads `has-*-background-color` and inline padding (via the inline global styles) into `tone`/`space`. Large sites like wordpress.org run a different theme per section: expect several layout clusters, not one.
+- Classic themes put `<main>` inside `div.site` or `#page`; the extractor descends into the wrapper that holds `<main>`.
 - The REST API (`/wp-json/wp/v2/posts?per_page=100`) can supply clean post bodies, dates, authors, categories and tags. Prefer it for blogs, and map taxonomies to Grav `taxonomy:` (`category`, `tag`) with a blog listing page (`content.items: '@self.children'`, pagination).
 - Forms: Contact Form 7 (`.wpcf7`), Gravity Forms (`gform_`), WPForms, Elementor forms: all server-side, so rebuild them with Grav Form.
 - Shortcode leftovers (`[gallery]`) and page builders (Elementor, Divi) produce deep wrapper markup; pass `--main-selector` if sections come out empty.

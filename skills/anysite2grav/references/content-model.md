@@ -56,14 +56,19 @@ sections:
     shared: newsletter
   - type: section
     id: pricing                   # optional anchor
+    tone: dark                    # light | muted | dark | accent → theme --tone-* colors
+    space: l                      # none | s | m | l | xl → theme --space-* padding
+    role: subnav                  # optional: a section menu bar under the header
     classes: [section, black]     # source classes → .src-section .src-black hooks
     background: hero.jpg          # page file, media://, theme:// or URL
     background_video: {sources: [hero.mp4], poster: hero.jpg}
     modal: true                   # render as <dialog id="modal-<id>"> instead of inline
     blocks:
-      - {type: heading, level: 1, text: "Markdown **inline**"}
+      - {type: heading, level: 1, text: "Markdown **inline**", classes: [has-xl-font-size]}
       - {type: text, text: "Paragraph markdown with [links](/x)"}
       - {type: list, ordered: false, items: ["one", "two"]}
+      - {type: list, title: "The details", items: ["[License](/license)"]}  # a menu group
+      - {type: columns, columns: [{blocks: [ … ]}, {blocks: [ … ]}]}       # side by side
       - {type: quote, text: "…"}
       - {type: image, src: photo.jpg, alt: "…", href: /optional-link}
       - {type: video, sources: [clip.mp4], poster: still.jpg, autoplay: false}
@@ -77,6 +82,10 @@ sections:
 ```
 
 Articles (pages with one dominant rich-text region) keep their surrounding sections (hero, related cards, CTAs, modals). Only the rich-text element is replaced, by a `{type: body}` block (`body_slot: true` in the header), and the Markdown body renders in that slot; editors edit the article as normal page content.
+
+`tone` and `space` are the standardized style: the extractor resolves them from the source's computed background and inline padding, the theme defines each step once, and editors pick from a short list in Admin. `classes` stay as `.src-*` hooks for what tokens can't express. Block `classes` are kept only when the source CSS styles them (typography presets, for example).
+
+Pages never carry the source's HTML. If extraction can't express a layout, improve the extractor or the theme; don't paste markup.
 
 `templates/partials/blocks.html.twig` renders each type; `blueprints/pages/sections.yaml` edits them in Admin. When you add a block type, update the extractor (if it can emit it), the renderer and the blueprint together.
 
@@ -104,7 +113,7 @@ pages/01.home/
 
 - Folder names are `NN._<name>`. The `NN.` prefix keeps source order; the slug starting with `_` makes it a module, which is never routable. Names come from the section's first heading, so editors recognize them in Admin.
 - The module file name is its **kind**: `hero`, `cards`, `gallery`, `form`, `shared`, or `section` for anything else. Each kind has `templates/modular/<kind>.html.twig` and `blueprints/pages/modular/<kind>.yaml`.
-- A module's frontmatter holds one section, flattened: `anchor` (the id), `classes`, `background`, `background_video`, `blocks`. The block schema is the same as in `sections`, and so is the Admin editor: both blueprints import `blueprints/pages/partials/block-fields.yaml`.
+- A module's frontmatter holds one section, flattened: `anchor` (the id), `tone`, `space`, `role`, `classes`, `background`, `background_video`, `blocks`. The block schema is the same as in `sections`, and so is the Admin editor: both blueprints import `blueprints/pages/partials/block-fields.yaml`.
 - Media used only by one module lives in that module's folder; shared and repeated media still go to `user/media/images`.
 
 Why modules instead of a long `sections` list: each section gets its own Admin page, media folder and ETag, so editors and agents can reorder, add, hide (`published: false`) or edit one section without rewriting the rest of the page. A short page is easier to edit as a single page, which is why the threshold exists.

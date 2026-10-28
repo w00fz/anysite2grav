@@ -31,9 +31,9 @@ Copy this checklist into your progress notes and tick it off. Each phase ends wi
 - [ ] 3. API key + MCP launcher; agent connected; list_pages works
 - [ ] 4. Routes discovered (crawl_site.py) and reviewed with the user
 - [ ] 5. Audit reviewed: analytics, forms, embeds, fonts, languages (audit_site.py)
-- [ ] 6. Decisions asked: theme name, Tailwind, language mode, forms, analytics
-- [ ] 7. Content extracted + media imported (extract_content.py, import_media.py)
-- [ ] 8. Pages built (build_pages.py), YAML lint clean, every route 200
+- [ ] 6. STOP: decisions asked and answered (theme name, Tailwind or built-in CSS, languages, forms, analytics)
+- [ ] 7. Content extracted (no single-section warnings) + media imported (extract_content.py, import_media.py)
+- [ ] 8. Pages built (build_pages.py) as Markdown + frontmatter, modular where long, YAML lint clean, every route 200
 - [ ] 9. Theme scaffolded with source tokens (capture_pages.mjs, scaffold_theme.py)
 - [ ] 10. Forms converted and test-submitted (build_forms.py)
 - [ ] 11. Analytics ported per the user's choice
@@ -70,7 +70,7 @@ $S/bootstrap_access.sh <project>                # admin account, API key, bin/gr
 python3 $S/crawl_site.py https://example.com --out migration [--alias www.example.com] [--keep-query page]
 ```
 
-It seeds from `robots.txt` and sitemaps, then crawls same-site links: hosted builders often publish no sitemap or an incomplete one. A random-path probe detects soft-404 pages that answer 200. Report the route count, how many came only from crawling, languages, redirects, broken links and PDFs. If the output says TRUNCATED, raise `--max-pages`. If pages render client-side (empty HTML), see [references/platforms.md](references/platforms.md).
+It seeds from `robots.txt` and sitemaps, then crawls same-site links: hosted builders often publish no sitemap or an incomplete one. For a scoped copy (only menu landing pages, one section), pass `--no-sitemaps` with `--include '<route regex>'` and/or `--max-depth N` instead of wrapping the script. A random-path probe detects soft-404 pages that answer 200. Report the route count, how many came only from crawling, languages, redirects, broken links and PDFs. If the output says TRUNCATED, raise `--max-pages`. If pages render client-side (empty HTML), see [references/platforms.md](references/platforms.md).
 
 ### 5. Audit
 
@@ -80,11 +80,13 @@ python3 $S/audit_site.py migration      # → migration/audit.md
 
 Show the user `audit.md`: third-party tags with IDs (GTM, GA4, Meta, HubSpot, Hotjar, Heap…), every distinct form with its fields and where it appears (including modals), embeds (Calendly, YouTube, Typeform), inline custom code, fonts and palette.
 
-### 6. Decisions to ask (after the audit, before building)
+### 6. Decisions to ask (after the audit, before building): a hard stop
+
+**Stop here and ask; don't extract, build or scaffold until the user answers.** This holds in auto/unattended modes too: these choices shape every file you write, and defaulting silently is how a run ends up with a theme nobody asked for. Use the structured question tool if available; otherwise ask in chat and end your turn. Only skip a question the user already answered in their request, and say which answer you took from it.
 
 Ask together, with a recommended default for each:
 
-1. **Theme name** (slug) and **Tailwind?** Tailwind 4 CLI build (recommended when the user will keep iterating on design), or plain CSS with tokens. Decide before styling starts.
+1. **Theme name** (slug) and **styling: Tailwind or built-in CSS?** Tailwind 4 CLI build (recommended when the user will keep iterating on design), or the built-in plain CSS (tokens + components, no build step). Always ask; never pick one silently.
 2. **Languages** (only if more than one): native Grav multilang (`page.<lang>.md`, one tree; recommended when hreflang maps the pages) or separate trees per language prefix (`--languages trees`).
 3. **Forms**: per form or as a default: delivery (save to `user/data`, email via SMTP, webhook, or keep a third-party embed), CAPTCHA (Grav's built-in **Cap**: invisible, self-hosted, no keys; Turnstile; reCAPTCHA; basic; none), success behavior (inline message, redirect, thank-you page). Options and trade-offs: [references/forms.md](references/forms.md).
 4. **Analytics**: port as-is but load **only on the production hostname** (recommended), add consent gating, keep only some tags, or drop them. Details: [references/analytics-seo.md](references/analytics-seo.md).
@@ -100,12 +102,13 @@ python3 $S/build_pages.py migration --grav grav [--languages native|trees] [--te
 php $S/grav_config.php grav lint user            # every frontmatter + YAML parses
 ```
 
-- `extract_content.py` keeps **every text block**, including the leaf `<div>`/`<span>` text that builders use instead of `<p>`, and repeated card grids, galleries, background videos and modals. It splits site chrome (header/footer) and sections repeated across pages (`shared-sections.json`). It clusters routes by layout (`content-index.json → clusters`).
+- `extract_content.py` keeps **every text block**, including the leaf `<div>`/`<span>` text that builders use instead of `<p>`, and repeated card grids, side-by-side `columns`, galleries, background videos and modals. It splits site chrome (header/footer, section menus), skips skip-links and screen-reader text, and stores sections repeated across pages (`shared-sections.json`). Each section gets a semantic **`tone`** (light, muted, dark, accent) and **`space`** (none–xl) resolved from the source CSS, instead of builder classes. It clusters routes by layout (`content-index.json → clusters`).
+- **Gate:** if it warns that composed pages came out as a single section (`content-index.json → quality.monolith_pages`), the splitter missed the page structure. Open one page in `html/`, find the element that wraps each horizontal band, and rerun with `--section-selector` (or `--main-selector`). Never work around it by writing pages as raw HTML. If no selector fixes it, report it as a skill bug with the route.
 - `build_pages.py` preserves every URL. It writes exact source `<title>` (`head_title`), descriptions and OG tags, provenance (`source.url`), `sections` for composed pages and a Markdown body for articles.
 - **Modular rule:** a composed page with more than three distinct horizontal sections (shared sections count, popups don't) becomes a Grav **modular page**: `modular.md` plus one module per section (`01._hero/hero.md`, `02._<heading>/cards.md`, …), each with its own media and Admin form. Three or fewer stay one page with a larger `sections` frontmatter. Articles and template-mapped pages are never modular. If the user wants a different cut-off, pass `--modular-threshold N` or `--modular off`. Shared sections become non-routable pages under `/shared`, missing parents become non-routable folders, and source redirects go to `system.yaml`. Images used on one page sit beside it; repeated ones go to `user/media/images` (`media://images/…`); PDFs go to `user/media/files`.
 - Rerun after improving extraction. Pass `--template-map` to assign cluster ids or route regexes to page types (see phase 12).
 
-**Check:** lint clean, `bin/grav clearcache`, every route returns 200, and `list_pages` over MCP shows the new tree. Content model, frontmatter schema and multilang: [references/content-model.md](references/content-model.md).
+**Check:** lint clean, `bin/grav clearcache`, every route returns 200, `list_pages` over MCP shows the new tree, and page files contain frontmatter + Markdown only (no copied source markup). Content model, frontmatter schema and multilang: [references/content-model.md](references/content-model.md).
 
 ### 9. Theme
 
@@ -114,7 +117,7 @@ node $S/capture_pages.mjs --migration migration --source https://example.com --t
 python3 $S/scaffold_theme.py migration --grav grav --name acme [--tailwind] [--fonts download|link|skip]
 ```
 
-This creates a standalone theme with no parent. It **ports the source's own CSS rules for section/card classes onto `.src-*` hooks** (`css/src/source.css`), which carries most backgrounds, spacing and colors that builders keep in CSS rather than markup. It also includes a document shell, a `sections`/`blocks` renderer, header/footer/menus/CTAs/socials from theme config (Admin-editable per language), a language switcher with hreflang, noindex on local/preview hosts, host-gated analytics partials, `/forms` embedding, modals as `<dialog>`, Admin blueprints for `sections` and `form`, `DESIGN.md`, and design tokens from the source. Fonts copied from the source need license confirmation before production: say so. If it reports header CTAs that open a popup (`href="#"`), click each one on the source to see which dialog opens, then set `navigation.<lang>.ctas[].modal` to that `/shared` section name. Theme structure, Tailwind and styling: [references/theme.md](references/theme.md).
+Run `capture_pages.mjs --tokens-only` first so the scaffold reads measured tokens. Pass `--tailwind` only if the user chose Tailwind in phase 6. This creates a standalone theme with no parent. Shared design is standardized in the theme: tone backgrounds and spacing steps come from the source's most used values (`--tone-*`, `--space-*`), and the source's own rules for the classes pages still use are **ported once, deduplicated, onto `.src-*` hooks** (`css/src/source.css`); per-page generated classes (`wp-container-*`, `w-node-*`) are dropped. It also includes a document shell, a `sections`/`blocks` renderer, header/footer/menus/CTAs/socials from theme config (Admin-editable per language), a language switcher with hreflang, noindex on local/preview hosts, host-gated analytics partials, `/forms` embedding, modals as `<dialog>`, Admin blueprints for `sections` and `form`, `DESIGN.md`, and design tokens from the source. Fonts copied from the source need license confirmation before production: say so. If it reports header CTAs that open a popup (`href="#"`), click each one on the source to see which dialog opens, then set `navigation.<lang>.ctas[].modal` to that `/shared` section name. Theme structure, Tailwind and styling: [references/theme.md](references/theme.md).
 
 Use the [Quark2 conventions reference](references/quark2-conventions.md) when extending the shell, Admin fields or modules. The scaffold adopts deferred asset output and reusable blueprint fields while keeping source styling. Add project CSS in `css/custom.css`; extend Twig blocks with `parent()` when adding assets. `--force` preserves site settings and theme blueprints; `--reset-config --force` explicitly replaces site settings from the audit, and `--force-templates` replaces skeleton files. Check the diff before either replacement flag.
 
@@ -137,7 +140,7 @@ Put the IDs in `user/config/themes/<theme>.yaml → analytics` (GTM/GA4 are pre-
 Work cluster by cluster, largest first (`content-index.json → clusters`):
 
 1. `node $S/capture_pages.mjs --migration migration --source <url> --local <local-url> --routes <example routes> --metrics` and open `migration/screens/report.html` (or view the `-fold.png` images) at 1440px and 390px. While iterating, add `--only local` to reuse the source shots. `--metrics` lists each section's height, padding, background and heading size/weight/line-height for source and local side by side: fix measured differences rather than eyeballing.
-2. Fix the biggest visual gap first. Style source variants through the `.src-<class>` hooks, adjust tokens, and add interactions the source has (tabs, carousels, accordions, sticky header, hover states), keeping them accessible and reduced-motion aware.
+2. Fix the biggest visual gap first, in this order: tokens (`tokens.css`: palette, type scale, tone and space steps) → section `tone`/`space` in frontmatter → `.src-<class>` hooks in `css/custom.css` → a specialized module kind or page type. Add interactions the source has (tabs, carousels, accordions, sticky header, hover states), keeping them accessible and reduced-motion aware. **Never** close a gap by pasting the source's page markup into a page or `html` block, or by loading the source's stylesheets per page. That trades an editable site for a screenshot match, and it is the one result this skill must not produce. If a layout can't be reached with these tools, keep the closest structured version and list the gap in the handoff.
 3. When a section design recurs across pages (every hero, every feature grid), **specialize its module kind**: named fields in `templates/modular/<kind>.html.twig` + `blueprints/pages/modular/<kind>.yaml`, filled by a fixup script. When a whole cluster of pages needs named fields, **promote it to a page type**: `templates/<type>.html.twig` + `blueprints/pages/<type>.yaml` with real fields. Derive the fields by reading the source HTML of two or three routes in the cluster (cleaner than the flattened blocks). Fill them with a rerunnable project script that runs **after** `build_pages.py`. Keep blueprint and template in step.
    Keep every project-specific fix (page-type transforms, modal wiring, extra imports) as a rerunnable script in `migration/fixups/`, and list the rebuild order (`build_pages` → fixups → `build_forms` → clear cache) in `migration/notes.md`, so reruns of the generic scripts never lose hand work.
 4. `python3 $S/verify_parity.py migration --local <local-url> --expect-noindex` until every route passes.
@@ -159,6 +162,8 @@ Iterate until the screenshots match and the verifier is green. Then show the use
 - **Analytics never fire off production hosts.** Don't send test traffic into the client's analytics.
 - **Don't fake integrations.** A form must store or send what it collects, and its success copy must say so. Never post to a guessed third-party endpoint.
 - **Admin2/API/MCP are local/authoring tools.** Production should not expose them (see setup.md for a deploy profile).
+- **Pages are Markdown + YAML frontmatter, never copied HTML.** Prose goes in the Markdown body; composed pages are `sections` frontmatter or modular pages (one module per horizontal section). An `html` block is a last resort for one widget (a third-party embed); report every one in the handoff.
+- **One theme, one stylesheet pipeline.** Shared design lives in the theme: `tokens.css` (palette, type, tone and space steps) → `components.css` → deduplicated `source.css` hooks → `custom.css`. Never ship per-page copies of source stylesheets or a builder's framework CSS wholesale. A theme whose CSS (fonts aside) grows past a few hundred KB has stopped being standardized.
 - **Prefer Grav's built-ins** (Form + Cap, Email, page media, `media://`, native multilang) over custom code.
 - Write the why of each choice, including rejected options, where the user keeps project notes (default `migration/notes.md`).
 - Theme JS stays dependency-free; don't enable Form options that need jQuery (`keep_alive` loads `form.min.js`).

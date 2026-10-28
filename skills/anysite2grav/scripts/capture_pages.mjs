@@ -64,8 +64,22 @@ const slug = (route) => (route.replace(/^\/|\/$/g, '').replace(/[^a-z0-9]+/gi, '
 const readTokens = () => {
   // First visible match: hidden modals often contain the first <h1> in the DOM.
   const visible = (selector) => [...document.querySelectorAll(selector)].find((element) => element.offsetParent !== null && element.getBoundingClientRect().height > 0)
+  // Headings: the most common computed size among visible content headings (ties → larger), so one
+  // small eyebrow or card title doesn't become the whole site's h2.
+  const typical = (selector) => {
+    const candidates = [...document.querySelectorAll(selector)].filter((element) => element.offsetParent !== null
+      && element.getBoundingClientRect().height > 0 && !element.closest('header, nav, footer, dialog, [role=dialog]'))
+    if (!candidates.length) return visible(selector)
+    const bySize = new Map()
+    for (const element of candidates) {
+      const size = getComputedStyle(element).fontSize
+      bySize.set(size, [...(bySize.get(size) ?? []), element])
+    }
+    const [, elements] = [...bySize.entries()].sort((a, b) => b[1].length - a[1].length || parseFloat(b[0]) - parseFloat(a[0]))[0]
+    return elements[0]
+  }
   const style = (selector) => {
-    const element = selector === 'body' ? document.body : visible(selector)
+    const element = selector === 'body' ? document.body : /^h[1-6]$/.test(selector) ? typical(selector) : visible(selector)
     if (!element) return null
     const computed = getComputedStyle(element)
     return {

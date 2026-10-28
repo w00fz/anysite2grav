@@ -15,6 +15,7 @@ form:
         embed: Embed (iframe)
         button: Button
         cards: Cards
+        columns: Columns (side by side)
         gallery: Gallery / logo strip
         table: Table
         form: Form
@@ -27,6 +28,14 @@ form:
     .text:
       type: textarea
       label: Text (Markdown)
+    .classes:
+      type: array
+      label: Style hooks
+      value_only: true
+      help: Rendered as src-<class> CSS hooks (headings and text)
+    .title:
+      type: text
+      label: List title
     .items:
       type: array
       label: List items
@@ -66,6 +75,44 @@ form:
         .src: {type: media, label: Image, sources: [page, site, url], accept: ['image/*']}
         .alt: {type: text, label: Alt text}
         .href: {type: text, label: Link}
+    .columns:
+      type: list
+      label: Columns
+      collapsed: true
+      fields:
+        .blocks:
+          type: list
+          label: Column content
+          fields:
+            .type:
+              type: select
+              label: Block
+              options: {heading: Heading, text: Text, list: List, image: Image, video: Video, button: Button, cards: Cards, gallery: Gallery}
+            .level:
+              type: select
+              label: Heading level
+              options: {1: H1, 2: H2, 3: H3, 4: H4, 5: H5, 6: H6}
+            .text:
+              type: textarea
+              label: Text (Markdown)
+            .items:
+              type: array
+              label: List items
+              value_only: true
+            .src:
+              type: media
+              label: Image
+              sources: [page, site, url]
+              accept: ['image/*']
+            .alt:
+              type: text
+              label: Alt text
+            .label:
+              type: text
+              label: Button label
+            .href:
+              type: text
+              label: Link
     .cards:
       type: list
       label: Cards

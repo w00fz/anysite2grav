@@ -3,14 +3,16 @@
   {% set type = block.type %}
   {% if type == 'heading' %}
     {% set level = min(max(block.level|default(2), 1), 6) %}
-    <h{{ level }} class="block-heading">{{ block.text|markdown(false)|raw }}</h{{ level }}>
+    <h{{ level }} class="block-heading {% for class in block.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}">{{ block.text|markdown(false)|raw }}</h{{ level }}>
   {% elseif type == 'text' %}
-    <p class="block-text">{{ block.text|markdown(false)|raw }}</p>
+    <p class="block-text {% for class in block.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}">{{ block.text|markdown(false)|raw }}</p>
   {% elseif type == 'quote' %}
     <blockquote class="block-quote">{{ block.text|markdown|raw }}</blockquote>
   {% elseif type == 'list' %}
     {% set tag = block.ordered ? 'ol' : 'ul' %}
+    {% if block.title %}<div class="block-list-group"><p class="block-list-title">{{ block.title|markdown(false)|raw }}</p>{% endif %}
     <{{ tag }} class="block-list">{% for item in block.items %}<li>{{ item|markdown(false)|raw }}</li>{% endfor %}</{{ tag }}>
+    {% if block.title %}</div>{% endif %}
   {% elseif type == 'image' %}
     {% set image = theme_media(block.src, page) %}
     {% if image %}
@@ -46,6 +48,12 @@
         <{{ tag }} class="card {% for class in item.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}"{% if item.href %} href="{{ item.href }}"{% endif %}>
           {% include 'partials/blocks.html.twig' with {blocks: item.blocks, page: page} %}
         </{{ tag }}>
+      {% endfor %}
+    </div>
+  {% elseif type == 'columns' %}
+    <div class="columns columns--{{ block.columns|length }}">
+      {% for column in block.columns %}
+        <div class="column">{% include 'partials/blocks.html.twig' with {blocks: column.blocks, page: page} %}</div>
       {% endfor %}
     </div>
   {% elseif type == 'gallery' %}

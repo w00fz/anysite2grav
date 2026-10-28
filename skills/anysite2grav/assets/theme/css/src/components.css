@@ -60,7 +60,12 @@ p { margin: 0 0 1em; }
 .block-text + .btn, .btn + .btn { margin-top: .5rem; margin-right: .5rem; }
 
 /* Sections and blocks */
-.section { padding-block: var(--section-space); position: relative; }
+/* flow-root: a first child's margin stays inside the section instead of exposing the page behind it. */
+.section { padding-block: var(--section-space); position: relative; display: flow-root; }
+/* Vertical rhythm steps (frontmatter `space`); two classes so they win over ported .src-* rules. */
+.section.space-none { padding-block: 0; } .section.space-s { padding-block: var(--space-s); }
+.section.space-m { padding-block: var(--space-m); } .section.space-l { padding-block: var(--space-l); }
+.section.space-xl { padding-block: var(--space-xl); }
 .section--background { background-image: var(--section-background); background-size: cover; background-position: center; }
 .section__inner > * + * { margin-top: 1rem; }
 .section--video { min-height: min(100svh, 56rem); display: grid; align-items: center; color: #fff; isolation: isolate; overflow: hidden; }
@@ -79,6 +84,34 @@ p { margin: 0 0 1em; }
 .gallery img { width: 100%; border-radius: var(--radius); object-fit: cover; }
 .gallery--logos { grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 2rem 3rem; }
 .gallery--logos img { max-height: 3.5rem; width: auto; max-width: 100%; margin-inline: auto; object-fit: contain; border-radius: 0; }
+/* Section tones: the few backgrounds the source uses, as tokens (tokens.css → --tone-*). Pages pick a
+   tone in frontmatter instead of carrying builder classes, so one palette change restyles every page. */
+.tone-light { background-color: var(--tone-light-bg); color: var(--tone-light-text); }
+.tone-muted { background-color: var(--tone-muted-bg); color: var(--tone-muted-text); }
+.tone-dark { background-color: var(--tone-dark-bg); color: var(--tone-dark-text); }
+.tone-accent { background-color: var(--tone-accent-bg); color: var(--tone-accent-text); }
+:is(.tone-dark, .tone-accent) a:not(.btn) { color: inherit; }
+:is(.tone-dark, .tone-accent) .card { background: rgb(255 255 255 / .06); color: inherit; border-color: rgb(255 255 255 / .16); }
+
+/* Side-by-side layout rows (text beside media, feature splits). */
+.columns { display: grid; gap: var(--card-gap) calc(var(--card-gap) * 2); grid-template-columns: repeat(var(--columns, 2), minmax(0, 1fr)); align-items: center; }
+.columns--3 { --columns: 3; } .columns--4 { --columns: 4; }
+.column { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.column > :first-child { margin-top: 0; } .column > :last-child { margin-bottom: 0; }
+@media (max-width: 48rem) { .columns { grid-template-columns: minmax(0, 1fr); } }
+
+/* Section menus (a secondary navigation bar under the header). */
+.section--subnav { padding-block: .75rem; }
+.section--subnav .section__inner { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; }
+.section--subnav .btn { background: none; color: inherit; padding: .25rem 0; border-radius: 0; font-weight: 500; }
+.section--subnav .block-text { margin: 0; font-weight: 600; }
+.section--subnav .block-list { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; list-style: none; margin: 0; padding: 0; }
+.section--subnav .block-list-group { position: relative; }
+.section--subnav .block-list-title { margin: 0; font-weight: 500; cursor: default; }
+.section--subnav .block-list-group .block-list { display: none; position: absolute; z-index: 20; top: 100%; left: 0; min-width: 14rem; flex-direction: column; padding: .75rem 1rem; background: var(--color-surface); color: var(--color-text); border-radius: var(--radius); box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.section--subnav .block-list-group:is(:hover, :focus-within) .block-list { display: flex; }
+.block-list-title { font-weight: 600; margin: 0 0 .25rem; }
+
 .cards { display: grid; gap: var(--card-gap); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
 .card { display: flex; flex-direction: column; gap: .75rem; padding: 1.5rem; border-radius: calc(var(--radius) * 2); background: var(--color-surface); color: var(--color-text); text-decoration: none; border: 1px solid var(--color-border); }
 a.card { transition: transform .2s, box-shadow .2s; } a.card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgb(0 0 0 / .12); }
