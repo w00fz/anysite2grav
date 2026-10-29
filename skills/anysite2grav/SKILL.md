@@ -9,7 +9,7 @@ Turn a live site into a local, editable Grav 2 copy that is as close to 1:1 as p
 
 **Fidelity contract:** the deliverable is a new Grav site with a new theme and source-specific page/module templates, matching blueprints, Markdown content, and equivalent working features. The import scripts and generic theme produce a draft. Exact layout, responsive rules, typography, spacing, colors, highlights, borders and interaction states must survive the conversion. Read [references/fidelity.md](references/fidelity.md) before designing the content types or styling. Do not call the scaffold a finished migration.
 
-All helpers live in `scripts/` (Python 3.9+ stdlib, PHP 8.3+, Node 18+). Run them from the project folder. Every script has `--help` and is safe to rerun.
+All helpers live in `scripts/` (Python 3.9+ stdlib, PHP 8.3+, Node 20+). Run them from the project folder. Every script has `--help` and is safe to rerun.
 
 ## Project layout
 

@@ -1,39 +1,45 @@
 # anysite2grav
 
-An agent skill that turns a live website into a local [Grav 2](https://getgrav.org) site as close to 1:1 as it can get, then hands your agent the keys.
+Rebuild a live website as an editable [Grav 2](https://getgrav.org) site with a new theme, native pages and modules, Admin2, and API and MCP access for your agent.
 
-**Overview:** open [`docs/index.html`](docs/index.html) in a browser for a visual walkthrough.
+The goal is source fidelity: the same routes, content, layout, spacing, typography, colors, borders, highlights, and interactions. Your agent uses the scripts to import a draft, then builds and verifies the source-specific templates and blueprints.
 
-**Website:** [anysite2grav.djamil.dev](https://anysite2grav.djamil.dev).
+**Status: early access.** The helpers have automated coverage, including Grav integration and browser comparisons. A fresh end-to-end migration using the revised fidelity workflow still needs validation. Review each generated site before treating the migration as complete.
 
-Give it a URL and it will:
-
-1. **Install the latest Grav + Admin2** in a new folder and start it (PHP's built-in server or Docker).
-2. **Set up the API and MCP first.** It creates an admin account, an API key and an MCP launcher, and registers it with Claude Code, Codex or Cursor, so your agent can work in the site straight away.
-3. **Discover every route.** It reads robots.txt and the sitemaps, then crawls the site, since many builders don't publish a complete sitemap. It also detects soft 404s, redirects, languages and PDFs.
-4. **Audit the site.** It inventories analytics and third-party tags with their IDs, every form (including ones in modals), embeds, inline code, fonts and the palette.
-5. **Ask what matters, then wait.** Theme name, Tailwind or built-in CSS, native multilang or per-language trees, how each form should deliver (save, email, webhook, keep the embed), the CAPTCHA provider (Grav's built-in Cap by default), and whether analytics are ported (production hosts only). Nothing is built until you answer.
-6. **Recreate the content.** One Grav page per URL, with the exact title and meta, OG tags, provenance, structured `sections` (headings, text, lists, columns, images, galleries, card grids, background videos, buttons, embeds, forms, modals) or Markdown for articles. Pages are always Markdown + frontmatter, never copied source HTML. Blogs, directories and other listings become **Grav collections** with pagination, category filters and search, using official plugins (`pagination`, `simplesearch`, `tntsearch`, `feed`…) where the source has those features. Pages with more than three horizontal sections become **modular pages**, one module per section (hero, cards, gallery, form, shared, section), each with its own Admin form and media. Shorter pages stay single pages. Shared sections are stored once, missing parents are created, source redirects are kept, and media is deduped by hash into page or site media.
-7. **Build a new standalone theme and source-specific content types.** The scaffold is a draft. Finish a representative page with dedicated Twig templates, named blueprint fields, Markdown and working plugins before expanding its design family. Match exact spacing, layout, typography, colors, highlights, borders and responsive/hover/focus states. Start from the source's measured styles. `measure_layout.mjs` reads each source page's real layout (split sections, column ratios, cards per row, card style, dividers, type scale, fonts, header color per page) and writes it as semantic frontmatter and tokens, as initial hints; final component CSS preserves exact source values and responsive rules, and the source's own CSS is ported once, deduplicated. The header, dropdown menus, CTAs, language switcher and footer are all editable in Admin, alongside reusable blueprints, preview-host `noindex`, host-gated analytics, a `DESIGN.md`, and an optional Tailwind 4 build. Selected official Quark2 conventions make templates and assets easier to extend while preserving your site's design.
-8. **Convert forms** into Grav Form pages (XHR submit, Cap) embedded wherever the source showed them.
-9. **Prove design, behavior and editability separately.** Use `compare_components.mjs` to compare geometry, CSS, pseudo-elements and UI states at desktop/tablet/mobile widths, with full-color screenshots. Missing controls keep the draft incomplete; grayscale scores never establish acceptance. Follow the [fidelity workflow](skills/anysite2grav/references/fidelity.md). It captures source and local screenshots side by side and runs a route-by-route verifier (status, titles, text coverage, media, forms, leftover CDN assets, `lang`/hreflang, noindex, analytics leakage, redirects) until both agree.
+[Website and overview](https://anysite2grav.djamil.dev) · [Agent workflow](skills/anysite2grav/SKILL.md) · [Fidelity guide](skills/anysite2grav/references/fidelity.md)
 
 ## Install
 
 ### Codex
 
-Paste this prompt into Codex (not your terminal):
+Paste this prompt into Codex:
 
 ```text
 $skill-installer Install anysite2grav from https://github.com/w00fz/anysite2grav/tree/main/skills/anysite2grav
 ```
 
-Codex's bundled installer can install skills from GitHub repositories. If the skill does not appear, restart Codex. See the [official installation guidance](https://learn.chatgpt.com/docs/build-skills#install-curated-skills-for-local-use).
+If the installed skill does not appear, restart Codex. See the [official skill installation guidance](https://learn.chatgpt.com/docs/build-skills#install-curated-skills-for-local-use).
 
-<details>
-<summary>Manual installation / development</summary>
+### Claude Code
 
-Use a linked working copy when you want to edit the skill or update it with Git:
+Run these commands inside Claude Code to add this repository as a marketplace and open the plugin installation panel:
+
+```text
+/plugin marketplace add w00fz/anysite2grav
+/plugin install anysite2grav@anysite2grav
+```
+
+Choose an installation scope when prompted. To update the installed plugin later, run this command in your terminal:
+
+```bash
+claude plugin update anysite2grav@anysite2grav
+```
+
+See the [official plugin installation and update guidance](https://code.claude.com/docs/en/discover-plugins).
+
+### Local development or another compatible agent
+
+Clone the repository, then link the skill into your client's skill directory:
 
 ```bash
 git clone https://github.com/w00fz/anysite2grav.git ~/Projects/anysite2grav
@@ -41,113 +47,168 @@ mkdir -p ~/.agents/skills
 ln -s ~/Projects/anysite2grav/skills/anysite2grav ~/.agents/skills/anysite2grav
 ```
 
-Update the working copy with `git pull`. Codex supports symlinked skill folders in its [documented local skill locations](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills).
+For a local Claude Code skill, use `~/.claude/skills/anysite2grav` as the link destination instead. Create `~/.claude/skills` first. [Codex](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) and [Claude Code](https://code.claude.com/docs/en/skills#choose-where-skills-load) support symlinked skill folders.
 
-</details>
+For linked installations, update the checkout with `git pull`. Other agents that support [Agent Skills](https://agentskills.io) can load `skills/anysite2grav/`.
 
-### Claude Code
+If repository access is restricted, your GitHub account needs read access to install or clone it.
 
-Install as a plugin:
+## Start a migration
+
+In Codex:
 
 ```text
-/plugin marketplace add w00fz/anysite2grav
-/plugin install anysite2grav@anysite2grav
+Use $anysite2grav to rebuild https://example.com locally in ~/Sites/example-grav.
 ```
 
-Or link a local working copy:
+With the Claude Code plugin:
 
-```bash
-mkdir -p ~/.claude/skills
-ln -s "$PWD/skills/anysite2grav" ~/.claude/skills/anysite2grav
+```text
+/anysite2grav:anysite2grav Rebuild https://example.com locally in ~/Sites/example-grav.
 ```
 
-Other agents that support the [Agent Skills](https://agentskills.io) format can load `skills/anysite2grav/`.
+The agent asks for choices that are not already specified: runtime, connected clients, theme name, Tailwind or plain CSS, languages, form delivery, CAPTCHA, and analytics. It audits the source before asking about the options that depend on the site.
 
-The repository is private; installation requires GitHub read access.
+Give the agent the source URL and destination folder. Specify any route restrictions or known external integrations. Use source content and assets that you are authorized to reproduce.
 
-## Use
+## What the workflow does
 
-> Convert https://example.com to Grav.
+1. Installs Grav with Admin2 in a new project folder. Creates an authoring account, API key, MCP launcher, and project configuration. Global client configuration changes require your approval.
+2. Discovers routes through sitemaps and same-site links. Audits forms, analytics, embeds, media, fonts, languages, redirects, and source features.
+3. Imports content into Markdown and YAML frontmatter. Composed pages become ordered modules or individual page types. Articles retain a Markdown body. Each final page or module type has a matching blueprint for editing in Admin.
+4. Builds a standalone theme from the source design. Finishes a representative page with dedicated Twig templates, named fields, and exact responsive styles before expanding that design family across the site.
+5. Recreates functionality with Grav core and compatible plugins. Styles plugin output to match the source, including hover, focus, selected, open, and error states. Tests forms against their configured delivery destination.
+6. Verifies routes, content, component measurements, full-color screenshots, interactions, and CMS editing. Keeps local and preview hosts out of search, and gates approved analytics to production hosts.
 
-> Use $anysite2grav to rebuild our Webflow site locally in ~/Sites/example-grav, with Tailwind.
-
-The skill walks through 13 checkpoints and stops to ask before anything that is the user's call (global client config, form delivery, analytics, licenses).
-
-## Theme conventions
-
-The scaffold draws on a [source-linked review of official Quark2](skills/anysite2grav/references/quark2-conventions.md): deferred head assets for embedded plugins, focused Twig blocks, reusable page fields, translated navigation labels and current-page semantics. It remains a standalone theme built from the source site's styles.
-
-Project CSS goes in `css/custom.css`, after the generated build. A forced scaffold rebuild preserves settings edited in Admin, custom CSS and theme blueprints. Use `--force --reset-config` to deliberately recreate site settings from the audit, or `--force-templates` to replace skeleton files and the theme blueprint. See the [theme guide](skills/anysite2grav/references/theme.md) before customizing.
+The [full workflow](skills/anysite2grav/SKILL.md) has 13 checkpoints. The [fidelity guide](skills/anysite2grav/references/fidelity.md) explains source inspection, content modeling, plugin styling, and acceptance.
 
 ## Requirements
 
-- PHP 8.3+ with `curl ctype dom gd json mbstring openssl session simplexml xml zip` (recommended: `intl yaml apcu opcache`), or Docker
-- Python 3.9+ (standard library only)
-- Node 18+ (for `grav-mcp`, Tailwind and Playwright screenshots, installed on demand)
+The agent needs shell and filesystem access, plus network access to the source site and download hosts.
 
-## Layout
-
-```
-skills/anysite2grav/
-  SKILL.md                 workflow, decisions, invariants
-  references/              setup, content model, theme, forms, analytics/SEO, platforms, verification
-  scripts/                 crawl, audit, extract, media, pages, theme, forms, capture, verify, install, MCP
-  assets/theme/            standalone Grav theme skeleton
-  assets/docker/           optional Docker runtime (Grav + Admin2, Mailpit)
-  agents/openai.yaml       Codex UI metadata
-docs/                      static overview site
-```
-
-## Scripts at a glance
-
-| Script | Does |
+| Tool | Requirement |
 | --- | --- |
-| `install_grav.sh` | latest grav-admin into `<project>/grav`, PHP checks |
-| `serve_grav.sh` | PHP built-in server start/stop/status |
-| `bootstrap_access.sh` | admin user, API key, `bin/grav-mcp`, `.mcp.json` (idempotent, `--rotate-key`) |
-| `crawl_site.py` | sitemap + crawl → `routes.json`, cached HTML, redirects |
-| `audit_site.py` | trackers, forms, embeds, inline code, fonts, palette → `audit.md` |
-| `extract_content.py` | sections/blocks, chrome (menus/footer), shared sections, layout clusters |
-| `import_media.py` | download once, SHA-256 dedupe, assign page/shared/theme/document scope |
-| `measure_layout.mjs` | computed layout of every section and block on the source → `layout.json` |
-| `build_pages.py` | Grav page tree (modular pages above 3 sections, collections for listings), frontmatter, media placement, languages, redirects |
-| `scaffold_theme.py` | theme from skeleton + tokens + navigation config, optional Tailwind |
-| `build_forms.py` | forms plan → `/forms/<name>` Grav Form pages + CAPTCHA config |
-| `capture_pages.mjs` | Playwright screenshots (source vs local) and computed design tokens |
-| `compare_components.mjs` | paired component geometry, exact CSS, pseudo-elements and UI-state comparisons with screenshots |
-| `verify_parity.py` | route-by-route content parity report |
-| `grav_config.php` | merge JSON into Grav YAML / lint frontmatter with Grav's own parser |
+| PHP | 8.3+ for Grav and the current host-side bootstrap and YAML helpers |
+| Python | 3.9+, standard library only |
+| Node.js and npm | Node 20+ for the migration tools, including the pinned Playwright browser helpers |
+| Shell tools | Bash, `curl`, and `unzip` for the installation and setup scripts |
+| Browser | Playwright and Chromium, installed in the migration project's `.tools` directory by the capture helpers |
 
-## Validate theme changes
+PHP extensions required for the native Grav runtime: `curl ctype dom gd json mbstring openssl session simplexml xml zip`. Recommended: `intl yaml apcu opcache exif`.
 
-Use PHP 8.3+ and an installed Grav 2 runtime for the regression suite. It creates temporary sites and leaves that runtime unchanged:
+Docker can run Grav and Mailpit, but the current host-side helpers still invoke PHP. See the [runtime and Docker setup guide](skills/anysite2grav/references/setup.md). The overview website's build tools require Node 22.18+.
+
+## Generated project
+
+```text
+example-grav/
+  grav/
+    user/
+      pages/              Markdown, frontmatter, modules, and page media
+      themes/<theme>/     Twig templates, blueprints, CSS, and JavaScript
+      config/             Site, plugin, language, and theme settings
+      media/              Shared images and documents
+  migration/              Crawl data, imported assets, transforms, and reports
+  .local/                 Credentials and local server state
+  bin/grav-mcp             Launcher that reads the API key at startup
+  .mcp.json                Claude Code project MCP configuration
+```
+
+The agent connects each selected MCP client and verifies that it can list pages. Credentials stay in `.local/credentials.json`; client configuration points at the launcher. Keep credentials and form submissions out of Git.
+
+See the [content model](skills/anysite2grav/references/content-model.md), [form configuration](skills/anysite2grav/references/forms.md), and [Grav feature map](skills/anysite2grav/references/grav-features.md) for details.
+
+## Fidelity and current limits
+
+- The generic theme and inferred tone, spacing, and layout settings are draft inputs. The agent must preserve exact source values in reusable theme components and author dedicated content types where needed.
+- Imports cover discovered routes within the agreed crawl scope. A scoped directory import needs enough data to reproduce its search, filters, and pagination, or an agreed integration with the original provider.
+- Custom widgets, client-rendered content, animations, and responsive variants can require additional extraction and implementation. An inaccessible feature or dataset remains an open requirement.
+- `build_pages.py` records unresolved controls in `unresolved-controls.json` and fails by default when controls remain. `--allow-incomplete` permits a draft import; it does not approve missing functionality.
+- Screenshot grayscale scores are triage hints. Text coverage and selected component matches do not establish whole-site fidelity. Review full-color screenshots, exercise controls, and save content through Admin or the API.
+- Review font and asset licenses before production. Configure real form delivery and verify preview indexing and analytics behavior before deployment.
+
+See the [verification checklist](skills/anysite2grav/references/verification.md) for completion criteria.
+
+## Extend the theme
+
+The theme stays standalone. A [source-linked review of Quark2](skills/anysite2grav/references/quark2-conventions.md) documents the conventions used for deferred plugin assets, Twig extension blocks, and reusable blueprint fields.
+
+Put project overrides in `css/custom.css`. It loads after the generated stylesheet. Ordinary forced scaffold rebuilds preserve site settings, theme configuration blueprints, and custom CSS. Review replacement flags and page-import changes before rerunning them against an edited site.
+
+Read the [theme guide](skills/anysite2grav/references/theme.md) before changing templates or the stylesheet pipeline.
+
+## Scripts
+
+Run these through the agent workflow so setup, configuration choices, imports, and verification happen in order.
+
+| Script | Purpose |
+| --- | --- |
+| `install_grav.sh` | Install Grav with Admin2 and check PHP requirements |
+| `serve_grav.sh` | Start, stop, or inspect the local PHP server |
+| `bootstrap_access.sh` | Create or reuse the authoring account, API key, and MCP launcher |
+| `crawl_site.py` | Discover routes and cache HTML, stylesheets, and redirects |
+| `audit_site.py` | Inventory forms, trackers, embeds, fonts, and colors |
+| `extract_content.py` | Extract sections, blocks, shared content, navigation, and layout groups |
+| `measure_layout.mjs` | Measure source sections and blocks for the draft layout model |
+| `import_media.py` | Download, deduplicate, and assign media |
+| `build_pages.py` | Build native page, module, collection, and media files |
+| `scaffold_theme.py` | Generate the draft theme, initial tokens, and optional Tailwind setup |
+| `build_forms.py` | Build Grav Form pages from the chosen configuration |
+| `capture_pages.mjs` | Capture screenshots, design tokens, and section metrics |
+| `compare_components.mjs` | Compare paired component geometry, CSS, pseudo-elements, and UI states |
+| `verify_parity.py` | Check route, content, metadata, media, and preview behavior |
+| `grav_config.php` | Read, merge, and lint YAML through Grav |
+
+## Run the checks
+
+Set `GRAV_TEST_ROOT` to an installed Grav 2 runtime with PHP 8.3+ available on `PATH`. The tests create temporary sites and leave that runtime unchanged:
 
 ```bash
 GRAV_TEST_ROOT=/path/to/grav python3 -m unittest discover -s skills/anysite2grav/tests -v
 ```
 
-Browser comparator checks: `GRAV_PLAYWRIGHT_TOOLS=/path/to/migration/.tools node --test skills/anysite2grav/tests/test_component_comparison.mjs`. They use controlled local pages to verify responsive/state matches and detect geometry, color, pseudo-element, missing-item and capture failures.
+For browser comparator tests, point `GRAV_PLAYWRIGHT_TOOLS` at a migration's `.tools` directory containing Playwright and its installed Chromium browser:
 
-The checks cover configuration preservation and explicit resets, plain CSS/Tailwind scaffolds, blueprint imports and modular controls, deferred assets, and embedded Form/Cap rendering with cold and warm caches. Project acceptance still includes an Admin edit and browser form submission.
+```bash
+GRAV_PLAYWRIGHT_TOOLS=/path/to/migration/.tools node --test skills/anysite2grav/tests/test_component_comparison.mjs
+```
+
+Grav integration tests skip without a valid runtime. Browser tests skip without `GRAV_PLAYWRIGHT_TOOLS`. Check skipped tests before treating a run as complete.
+
+The tests cover extraction, rebuild preservation, blueprint resolution, real Grav rendering, embedded Form and Cap assets, and controlled browser comparisons. Each migrated site still needs its own visual, interaction, form-delivery, and editing checks.
 
 ## Publish the overview
 
-The existing `docs/` page is hosted with Cloudflare Workers Static Assets at [anysite2grav.djamil.dev](https://anysite2grav.djamil.dev). The configuration targets the personal Cloudflare account named **Djamil** and the `anysite2grav` Worker.
+This section is for maintainers of [anysite2grav.djamil.dev](https://anysite2grav.djamil.dev). The repository's Cloudflare configuration targets Djamil's personal account and the `anysite2grav` Worker. To host your own copy, change `cloudflare.config.ts` before deployment and review `wrangler.config.ts`.
 
-With Node.js 22.18 or later:
+With Node 22.18+, install the deployment dependencies:
 
 ```bash
 npm ci
-npx cf auth login
-npx cf deploy --dry-run
-npm run deploy
-
-# Publish the permanent redirect from the previous hostname
-npm run deploy:legacy
 ```
 
-The default deployment publishes `docs/`. Legacy mode publishes only `hosting/legacy/` to the previous `website2grav` Worker, permanently redirecting its custom-domain and workers.dev URLs to the canonical site while retaining paths and query strings. Cloudflare manages the custom domain's DNS and HTTPS certificate. Deployment is manual; pushing to GitHub does not publish the site.
+If you need a login for this project, create a named Cloudflare profile once:
+
+```bash
+npx cf auth create anysite2grav
+```
+
+Confirm that the profile can access the configured account, then dry-run and deploy:
+
+```bash
+npx cf auth whoami --profile anysite2grav
+npm run deploy -- --profile anysite2grav --dry-run
+npm run deploy -- --profile anysite2grav
+```
+
+Use your existing profile name if it differs. Passing the profile explicitly avoids changing the default login used by other projects.
+
+The default deployment publishes `docs/`. `npm run deploy:legacy -- --profile anysite2grav` publishes only `hosting/legacy/` to the previous `website2grav` Worker. That Worker redirects its custom domain and workers.dev URL to the canonical site, preserving paths and query strings. Pushing to GitHub does not deploy the overview.
+
+## Report a bug
+
+[Open an issue](https://github.com/w00fz/anysite2grav/issues) with the agent client, operating system, tool versions, failing command, and error output. Include a source URL and screenshots when they can be shared. Remove credentials, private content, and form submissions from reports.
 
 ## License
 
-MIT
+[MIT](LICENSE). The website includes the [Inter](docs/fonts/OFL-Inter.txt) and [Google Sans](docs/fonts/OFL-Google-Sans.txt) font licenses.
