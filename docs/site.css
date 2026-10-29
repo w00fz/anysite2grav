@@ -174,6 +174,54 @@ code, pre { font-family: var(--site-mono); }
 .platforms { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 18px; padding: 30px 0; margin-top: 40px; border-top: 1px solid var(--site-line); color: var(--site-muted); font: 11px var(--site-mono); }
 .platforms strong { color: var(--site-ink); font: 500 14px var(--site-sans); letter-spacing: -.02em; }
 
+.promo-content { max-width: 1100px; margin-inline: auto; }
+.promo-player { overflow: hidden; border: 1px solid var(--site-line); border-radius: 14px; background: var(--site-surface); }
+.promo-player video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: var(--site-code-bg); }
+.promo-player-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; }
+.promo-play { min-height: 44px; gap: 10px; }
+.promo-play > span:first-child { font-size: 11px; }
+.promo-duration { margin-left: auto; color: var(--site-muted); font-size: 11px; line-height: 1.5; text-align: right; }
+.promo-chapters { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 14px 14px; }
+.promo-chapters button { flex: 1; min-height: 44px; padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; color: var(--site-muted); background: transparent; font-size: 11px; white-space: nowrap; }
+.promo-chapters button span { margin-right: 7px; font-variant-numeric: tabular-nums; }
+.promo-chapters button[aria-pressed="true"] { color: var(--site-accent); background: var(--site-accent-soft); }
+.promo-chapters button:hover { border-color: var(--site-line); }
+.promo-status { padding: 0 20px 16px; color: var(--site-muted); font-size: 13px; }
+.promo-status a { color: var(--site-accent); }
+.promo-demos-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 32px 0 16px; }
+.promo-demos-heading h3 { font-size: 23px; }
+.promo-demos-heading p { color: var(--site-muted); font-size: 12px; }
+.promo-demos { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.promo-demo { min-width: 0; overflow: hidden; border: 1px solid var(--site-line); border-radius: 14px; background: var(--site-surface); }
+.promo-demo > img { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 632; border-bottom: 1px solid var(--site-line); }
+.promo-demo-content { padding: 20px; }
+.promo-demo-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.promo-demo-title h3 { font-size: clamp(18px, 2vw, 24px); }
+.promo-demo-title time { flex: none; color: var(--site-muted); font-size: 11px; }
+.promo-demo-content > p { margin-top: 10px; color: var(--site-muted); font-size: 13px; line-height: 1.8; }
+.promo-demo-links { display: flex; flex-wrap: wrap; gap: 0 20px; margin-top: 10px; }
+.promo-demo-links a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--site-accent); font-size: 12px; font-weight: 600; }
+.promo-closing { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-top: 30px; padding: 24px 0; border-top: 1px solid var(--site-line); }
+.promo-closing p { margin-top: 7px; color: var(--site-muted); font-size: 13px; }
+.promo-closing .text-link { flex: none; margin-top: 0; }
+.promo-description { border-bottom: 0 !important; }
+.promo-description > summary { min-height: 44px; padding: 12px 0; color: var(--site-muted); font-size: 12px; letter-spacing: 0; }
+.promo-description > summary::after { font-size: 20px; }
+.promo-description > p { max-width: 800px; padding-bottom: 16px; color: var(--site-muted); font-size: 13px; line-height: 1.9; }
+@media (max-width: 620px) {
+  .promo-player-footer { padding: 12px; gap: 10px; }
+  .promo-play { padding: 10px 12px; font-size: 11px; }
+  .promo-duration { max-width: 110px; font-size: 10px; }
+  .promo-chapters { padding: 0 8px 8px; gap: 2px; }
+  .promo-chapters button { flex: 1 1 28%; padding: 7px 5px; font-size: 10px; }
+  .promo-demos { grid-template-columns: 1fr; gap: 16px; }
+  .promo-demos-heading h3 { font-size: 20px; }
+  .promo-demos-heading p { max-width: 100px; font-size: 11px; text-align: right; }
+  .promo-demo-content { padding: 16px; }
+  .promo-closing { align-items: flex-start; flex-wrap: wrap; gap: 12px; padding: 20px 0; }
+  .promo-closing h3 { font-size: 20px; }
+}
+
 .section { padding: 92px 0; }
 .section-heading { max-width: 790px; margin: 0 auto 42px; text-align: center; }
 .section-heading .eyebrow { justify-content: center; margin-bottom: 17px; }

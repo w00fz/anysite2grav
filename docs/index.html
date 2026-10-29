@@ -143,6 +143,37 @@ ln -s ~/Projects/anysite2grav/skills/anysite2grav ~/.claude/skills/anysite2grav<
     </div>
   </header>
 
+  <section class="section promo" id="showcase" aria-labelledby="showcase-title">
+    <div class="wrap">
+      <div class="section-heading"><p class="eyebrow">See the rebuild</p><h2 id="showcase-title">Looks like your site.<br><span class="accent">Works like your CMS.</span></h2><p>Watch two familiar websites rebuilt in Grav. Then step inside the Admin, with content fields shaped around each page.</p></div>
+      <div class="promo-content">
+        <figure class="promo-player" aria-label="42-second showcase of the WordPress.org and Apple.com rebuilds and their Grav Admin interfaces">
+          <video id="promo-video" controls muted playsinline preload="none" poster="media/showcase-poster.webp" width="1920" height="1080" aria-label="anysite2grav showcase: comparisons, content fields and galleries">
+            <source src="media/showcase.mp4" type="video/mp4">
+            <track kind="captions" label="Scene descriptions" srclang="en" src="media/showcase-captions.vtt">
+            <p><a href="media/showcase.mp4">Watch the showcase video</a>.</p>
+          </video>
+          <figcaption class="promo-player-footer"><button class="button button-violet promo-play" id="promo-play" type="button" aria-controls="promo-video" hidden><span id="promo-play-symbol" aria-hidden="true">▶</span><span id="promo-play-label">Play the showcase</span></button><span class="promo-duration">0:42 · Captioned<br>Made to watch without sound</span></figcaption>
+          <nav class="promo-chapters" id="promo-chapters" aria-label="Showcase chapters" hidden>
+            <button type="button" data-promo-time="2.5" data-promo-end="8.5" aria-controls="promo-video" aria-pressed="false"><span>0:03</span>WordPress</button>
+            <button type="button" data-promo-time="8.5" data-promo-end="14.5" aria-controls="promo-video" aria-pressed="false"><span>0:09</span>Apple</button>
+            <button type="button" data-promo-time="17" data-promo-end="24" aria-controls="promo-video" aria-pressed="false"><span>0:17</span>Content</button>
+            <button type="button" data-promo-time="24" data-promo-end="31" aria-controls="promo-video" aria-pressed="false"><span>0:24</span>Fields</button>
+            <button type="button" data-promo-time="31" data-promo-end="38" aria-controls="promo-video" aria-pressed="false"><span>0:31</span>Galleries</button>
+          </nav>
+          <p class="promo-status" id="promo-status" role="status" hidden>Playback is unavailable. <a href="media/showcase.mp4">Open the showcase video directly</a>.</p>
+        </figure>
+        <div class="promo-demos-heading"><h3>Take a closer look.</h3><p>Two complete walkthroughs</p></div>
+        <div class="promo-demos">
+          <article class="promo-demo"><img src="media/wordpress.webp" alt="The Grav rebuild and original WordPress.org homepage shown side by side" loading="lazy" decoding="async" width="1280" height="632"><div class="promo-demo-content"><div class="promo-demo-title"><h3>WordPress.org → Grav</h3><time datetime="PT4M43S">4:43</time></div><p>From the front page to editable sections, content and media.</p><div class="promo-demo-links"><a href="https://www.youtube.com/watch?v=V9SQdZitSjY&amp;t=5s" target="_blank" rel="noopener">Compare the sites <span aria-hidden="true">↗</span></a><a href="https://www.youtube.com/watch?v=V9SQdZitSjY&amp;t=143s" target="_blank" rel="noopener">Explore the Admin <span aria-hidden="true">↗</span></a></div></div></article>
+          <article class="promo-demo"><img src="media/apple.webp" alt="The Grav rebuild and original Apple.com homepage shown side by side" loading="lazy" decoding="async" width="1280" height="632"><div class="promo-demo-content"><div class="promo-demo-title"><h3>Apple.com → Grav</h3><time datetime="PT6M11S">6:11</time></div><p>From product heroes to custom fields and editable galleries.</p><div class="promo-demo-links"><a href="https://www.youtube.com/watch?v=FPf3MfDq6pA&amp;t=1s" target="_blank" rel="noopener">Compare the sites <span aria-hidden="true">↗</span></a><a href="https://www.youtube.com/watch?v=FPf3MfDq6pA&amp;t=137s" target="_blank" rel="noopener">Explore the Admin <span aria-hidden="true">↗</span></a></div></div></article>
+        </div>
+        <div class="promo-closing"><div><h3>Your next site starts with a URL.</h3><p>Bring the design. Keep creating in Grav.</p></div><a class="text-link" href="#install">Get the skill <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a></div>
+        <details class="promo-description"><summary>Read the showcase description</summary><p>The showcase opens with two independent rebuild demos. First, WordPress.org is shown beside its Grav recreation. Then, Apple.com is shown beside its Grav recreation. The view moves into Grav Admin: content and media fields for the WordPress.org rebuild, custom page fields for the Apple.com rebuild, and repeatable gallery items. It ends with “Looks like your site. Works like your CMS.”</p></details>
+      </div>
+    </div>
+  </section>
+
   <section class="section workflow" id="how" aria-labelledby="workflow-title">
     <div class="wrap">
       <div class="section-heading"><p class="eyebrow">From URL to handoff</p><h2 id="workflow-title">From URL to an editable Grav site.</h2><p>Your agent follows 13 checkpoints. You review the important choices; scripts handle the repetitive work.</p></div>
@@ -281,13 +312,73 @@ ln -s ~/Projects/anysite2grav/skills/anysite2grav ~/.claude/skills/anysite2grav<
       <p class="footer-credit">Made by <a href="https://github.com/w00fz">Djamil Legato</a></p>
     </div>
     <nav class="footer-nav" aria-label="Footer navigation">
-      <div class="footer-group"><h2>Explore</h2><a href="#how">How it works</a><a href="#efficiency">Scripts &amp; efficiency</a><a href="#seo">SEO</a><a href="#conventions">Theme conventions</a><a href="#requirements">Requirements</a></div>
+      <div class="footer-group"><h2>Explore</h2><a href="#showcase">See the rebuild</a><a href="#how">How it works</a><a href="#efficiency">Scripts &amp; efficiency</a><a href="#seo">SEO</a><a href="#conventions">Theme conventions</a><a href="#requirements">Requirements</a></div>
       <div class="footer-group"><h2>Elsewhere</h2><a href="https://github.com/w00fz/anysite2grav">GitHub <svg class="icon" aria-hidden="true"><use href="#icon-external"/></svg></a><a href="https://getgrav.org">Grav CMS <svg class="icon" aria-hidden="true"><use href="#icon-external"/></svg></a></div>
     </nav>
   </div>
   <div class="wrap footer-bottom"><span>anysite2grav · MIT License</span><a href="#top">Back to top <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a></div>
 </footer>
 <script>
+  {
+    const promoVideo = document.getElementById('promo-video');
+    const promoPlay = document.getElementById('promo-play');
+    const promoPlayLabel = document.getElementById('promo-play-label');
+    const promoPlaySymbol = document.getElementById('promo-play-symbol');
+    const promoStatus = document.getElementById('promo-status');
+    const promoChapters = [...document.querySelectorAll('[data-promo-time]')];
+    let requestedChapterTime = null;
+
+    const updatePromoState = () => {
+      const isPlaying = !promoVideo.paused && !promoVideo.ended;
+      promoPlayLabel.textContent = isPlaying ? 'Pause showcase' : promoVideo.ended ? 'Replay showcase' : 'Play the showcase';
+      promoPlaySymbol.textContent = isPlaying ? 'Ⅱ' : '▶';
+      promoChapters.forEach((chapterButton) => {
+        const isCurrent = promoVideo.currentTime >= Number(chapterButton.dataset.promoTime) && promoVideo.currentTime < Number(chapterButton.dataset.promoEnd);
+        chapterButton.setAttribute('aria-pressed', String(isCurrent));
+      });
+    };
+    const playPromo = () => {
+      promoStatus.hidden = true;
+      promoVideo.play().catch((playbackError) => {
+        if (playbackError.name !== 'AbortError') promoStatus.hidden = false;
+        updatePromoState();
+      });
+    };
+    const playRequestedChapter = () => {
+      if (requestedChapterTime === null) return;
+      promoVideo.currentTime = requestedChapterTime;
+      requestedChapterTime = null;
+      playPromo();
+      updatePromoState();
+    };
+    promoVideo.addEventListener('loadedmetadata', playRequestedChapter);
+    promoPlay.addEventListener('click', () => {
+      if (promoVideo.paused || promoVideo.ended) {
+        if (promoVideo.ended) promoVideo.currentTime = 0;
+        playPromo();
+      } else promoVideo.pause();
+      updatePromoState();
+    });
+    promoChapters.forEach((chapterButton) => {
+      chapterButton.addEventListener('click', () => {
+        requestedChapterTime = Number(chapterButton.dataset.promoTime);
+        if (promoVideo.readyState >= 1) playRequestedChapter();
+        else {
+          promoVideo.preload = 'metadata';
+          if (promoVideo.networkState !== HTMLMediaElement.NETWORK_LOADING) promoVideo.load();
+        }
+      });
+    });
+    ['play', 'pause', 'ended', 'timeupdate', 'seeked'].forEach((eventName) => promoVideo.addEventListener(eventName, updatePromoState));
+    promoVideo.addEventListener('error', () => {
+      requestedChapterTime = null;
+      promoStatus.hidden = false;
+      updatePromoState();
+    });
+    promoPlay.hidden = false;
+    document.getElementById('promo-chapters').hidden = false;
+  }
+
   const themeOptions = ['system', 'light', 'dark'];
   const themeNames = { system: 'System', light: 'Light', dark: 'Dark' };
   const themeIcons = { system: 'icon-system', light: 'icon-sun', dark: 'icon-moon' };
