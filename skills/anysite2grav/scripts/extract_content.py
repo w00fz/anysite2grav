@@ -107,10 +107,171 @@ def is_card_grid(node: Node) -> bool:
     return all(has_content(child) for child in similar) and sum(1 for child in similar if child.find(*HEADINGS, "img", "picture", "strong")) >= len(similar) * 0.6 and any(len(child.element_children()) > 0 for child in similar)
 
 
+def code_text(node: Node) -> str:
+    """Raw text of a code sample, keeping line breaks and markup characters as typed."""
+    parts = []
+    for child in node.children:
+        if isinstance(child, str):
+            parts.append(child)
+        elif child.tag == "br":
+            parts.append("\n")
+        else:
+            parts.append(code_text(child))
+    return "".join(parts)
+
+
 def is_columns(node: Node) -> bool:
     """A side-by-side layout row: two to four content columns (text beside media, feature splits)."""
     children = meaningful_children(node)
     return 2 <= len(children) <= 4 and all(child.tag not in FLOW_TAGS for child in children)
+
+
+LISTING_ITEM_HINT = re.compile(r"(?:^|\s)(wp-block-post|hentry|type-post|post|entry|w-dyn-item|collection-item|product|sqs-blog-item|summary-item)(?:$|\s)", re.I)
+PAGINATION_HINT = re.compile(r"pagination|page-numbers|w-pagination|pager", re.I)
+PAGED_URL = re.compile(r"/page/(\d+)/?$|[?&](?:paged|page|p)=(\d+)")
+DATE_TEXT = re.compile(
+    r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.? \d{1,2},? \d{4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2} (?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* \d{4}\b",
+    re.I,
+)
+TERM_HINT = re.compile(r"term|categor|tag|topic|label|badge", re.I)
+
+
+def listing_items(node: Node) -> list[Node]:
+    """Repeated item nodes of a collection-like container (2+ with the same tag)."""
+    children = [child for child in meaningful_children(node)]
+    if len(children) < 3:
+        return []
+    counts = Counter(child.tag for child in children)
+    tag, count = counts.most_common(1)[0]
+    items = [child for child in children if child.tag == tag]
+    return items if count >= max(3, 0.7 * len(children)) else []
+
+
+def listing_item(item: Node, base: str) -> dict | None:
+    """Title, link, date, image, excerpt and terms of one collection item."""
+    heading = item.find(*HEADINGS)
+    title_anchor = (heading.find("a") if heading is not None else None) or next((anchor for anchor in item.find_all("a") if normalize_space(anchor.text())), None)
+    title = normalize_space((heading or title_anchor or Node("x")).text())
+    href = normalize_url((title_anchor.get("href") if title_anchor is not None else "") or (item.get("href") if item.tag == "a" else ""), base, keep_query=True)
+    if not title or not href:
+        return None
+    entry: dict = {"title": title, "href": href}
+    time_node = item.find("time")
+    date_text = (time_node.get("datetime") or normalize_space(time_node.text())) if time_node is not None else None
+    date_match = DATE_TEXT.search(item.text(" ")) if not date_text else None
+    if date_text or date_match:
+        entry["date"] = date_text or date_match.group(0)
+    image = item.find("img", "picture")
+    if image is not None:
+        block = media_block(image, base)
+        if block:
+            entry["image"] = block["src"]
+            entry["alt"] = block.get("alt") or ""
+    terms = []
+    for holder in item.iter():
+        if holder is item or not TERM_HINT.search(holder.get("class")):
+            continue
+        for anchor in holder.find_all("a"):
+            label = normalize_space(anchor.text())
+            if label and label != title and label not in [term["label"] for term in terms]:
+                terms.append({"label": label, "href": normalize_url(anchor.get("href"), base, keep_query=True)})
+    if terms:
+        entry["terms"] = terms
+    title_texts = {title, *(term["label"] for term in terms), entry.get("date") or ""}
+    excerpt = next((normalize_space(paragraph.text()) for paragraph in item.find_all("p") if normalize_space(paragraph.text()) not in title_texts and len(normalize_space(paragraph.text())) > 20), None)
+    if excerpt:
+        entry["excerpt"] = excerpt
+    # Everything else the item shows (location, price, rating, author…) stays as blocks: it becomes
+    # the item page's body, so turning cards into a collection never drops text.
+    entry["blocks"] = extract_blocks(item, base, {})
+    return entry
+
+
+def detect_listing(node: Node, base: str) -> dict | None:
+    """A collection (posts, products, directory cards) rather than hand-placed cards.
+
+    Needs collection signals so ordinary navigation cards stay cards: post/CMS-item markup,
+    dates on most items, or pagination right after the list.
+    """
+    if node.tag == "nav" or any(ancestor.tag == "nav" for ancestor in node.ancestors()):
+        return None  # menus are chrome or section menus, never collections
+    items = listing_items(node)
+    if not items:
+        return None
+    signals = sum(1 for item in items if LISTING_ITEM_HINT.search(item.get("class")) or item.tag == "article")
+    dated = sum(1 for item in items if item.find("time") is not None or DATE_TEXT.search(item.text(" ")))
+    if signals < 0.6 * len(items) and dated < 0.6 * len(items):
+        return None
+    entries = [entry for entry in (listing_item(item, base) for item in items) if entry]
+    if len(entries) < 3:
+        return None
+    routes = [route_of(entry["href"]) for entry in entries]
+    parents = Counter("/".join(route.rstrip("/").split("/")[:-1]) or "/" for route in routes)
+    listing = {
+        "type": "listing",
+        "style": "cards" if sum(1 for entry in entries if entry.get("image")) >= 0.6 * len(entries) else "list",
+        "items": entries,
+        "item_parent": parents.most_common(1)[0][0],
+        "classes": [name for name in node.classes if name in STYLED_CLASSES and not GENERATED_CLASS.search(name)][:4],
+    }
+    if any(entry.get("terms") for entry in entries):
+        listing["taxonomy"] = "category"
+    return listing
+
+
+def pagination_info(root: Node) -> dict | None:
+    """Pages of a paginated listing: the highest page number linked from a pagination nav."""
+    for node in root.iter():
+        if not (PAGINATION_HINT.search(node.get("class")) or "pagination" in node.get("aria-label").lower()):
+            continue
+        numbers = [int(match.group(1) or match.group(2)) for anchor in node.find_all("a") for match in [PAGED_URL.search(anchor.get("href"))] if match]
+        if numbers:
+            return {"pages": max(numbers)}
+    return None
+
+
+def scoped_search(root: Node, page_url: str) -> Node | None:
+    """The search form that searches this page's own collection (its action is the page itself)."""
+    for form in root.find_all("form"):
+        inputs = form.find_all("input")
+        if not any(field.get("type") == "search" or field.get("name") in ("s", "q", "search", "query") for field in inputs):
+            continue
+        action = normalize_url(form.get("action") or page_url, page_url) or ""
+        if route_of(action).rstrip("/") == route_of(page_url).rstrip("/"):
+            return form
+    return None
+
+
+def control_target(root: Node, action: str) -> str:
+    """What a label-only control opens: `content` (a tab pane), `dialog` (a popup/dropdown) or `missing`."""
+    document = root
+    while document.parent is not None:
+        document = document.parent
+    target = next((node for node in document.iter() if node.get("id") == action.lstrip("#")), None)
+    if target is None:
+        return "missing"
+    chain = [target, *target.ancestors()]
+    if any(node.tag == "dialog" or node.get("role") in ("dialog", "menu", "listbox") or re.search(r"modal|popover|dropdown|overlay", node.get("class"), re.I) for node in chain):
+        return "dialog"
+    return "content"
+
+
+def is_pagination(node: Node) -> bool:
+    return bool(PAGINATION_HINT.search(node.get("class")) or "pagination" in node.get("aria-label").lower())
+
+
+def drop_blocks(blocks: list[dict], unwanted) -> list[dict]:
+    """Remove blocks matching `unwanted`, also inside columns and cards."""
+    kept = []
+    for block in blocks:
+        if unwanted(block):
+            continue
+        for key in ("columns", "cards"):
+            if key in block:
+                block[key] = [{**inner, "blocks": drop_blocks(inner["blocks"], unwanted)} for inner in block[key]]
+                block[key] = [inner for inner in block[key] if inner["blocks"]]
+        kept.append(block)
+    return kept
 
 
 def poster_url(video: Node, base: str) -> str | None:
@@ -205,6 +366,24 @@ def extract_blocks(node: Node, base: str, forms_by_node: dict) -> list[dict]:
                     if block:
                         blocks.append(block)
                 continue
+            if tag == "pre" or (tag == "code" and "\n" in "".join(text for text in child.children if isinstance(text, str))):
+                code = child.find("code") or child
+                language = next((name.split("-", 1)[1] for name in code.classes if name.startswith(("language-", "lang-"))), None)
+                source = code_text(code)
+                if source.strip():
+                    blocks.append({"type": "code", "code": source.strip("\n"), **({"language": language} if language else {})})
+                continue
+            if is_pagination(child) and child.find("a") is not None:
+                continue  # rebuilt by the collection's own pagination
+            listing = detect_listing(child, base)
+            if listing:
+                blocks.append({**listing, "_path": css_path(child)})
+                continue
+            block_items = any(item.find(*HEADINGS, "img", "picture", "figure", "p", "dl") is not None for item in child.element_children() if item.tag == "li")
+            if tag in ("ul", "ol") and block_items and not is_card_grid(child):
+                # Items that are whole blocks (a slide, a feature row) aren't list text: keep their structure.
+                walk(child)
+                continue
             if tag in ("ul", "ol") and not is_card_grid(child):
                 items, groups = [], []
                 for item in child.element_children():
@@ -223,7 +402,12 @@ def extract_blocks(node: Node, base: str, forms_by_node: dict) -> list[dict]:
                     groups.append({"type": "list", "ordered": sub.tag == "ol", "title": label or None, "items": [entry for entry in entries if entry]})
                 items = [item for item in items if item]
                 if items:
-                    blocks.append({"type": "list", "ordered": tag == "ol", "items": items})
+                    entry = {"type": "list", "ordered": tag == "ol", "items": items, "_path": css_path(child)}
+                    lis = [item for item in child.element_children() if item.tag == "li"]
+                    active = next((index for index, item in enumerate(lis) if re.search(r"(?:^|[\s_-])(current|active|is-active)(?:$|[\s_-])", item.get("class")) or item.find_all("a") and any(anchor.get("aria-current") for anchor in item.find_all("a"))), None)
+                    if active is not None:
+                        entry["active"] = active
+                    blocks.append(entry)
                 blocks.extend({key: value for key, value in group.items() if value is not None} for group in groups if group["items"])
                 for image in child.find_all("img"):
                     block = media_block(image, base)
@@ -272,7 +456,7 @@ def extract_blocks(node: Node, base: str, forms_by_node: dict) -> list[dict]:
                 columns = [extract_blocks(column, base, forms_by_node) for column in meaningful_children(child)]
                 columns = [{"blocks": column} for column in columns if column]
                 if len(columns) >= 2:
-                    blocks.append({"type": "columns", "columns": columns})
+                    blocks.append({"type": "columns", "columns": columns, "_path": css_path(child)})
                     continue
                 blocks.extend(block for column in columns for block in column["blocks"])
                 continue
@@ -286,12 +470,16 @@ def extract_blocks(node: Node, base: str, forms_by_node: dict) -> list[dict]:
                     if item_blocks:
                         items.append({"blocks": item_blocks, "classes": [cls for cls in item.classes if not cls.startswith("w-")][:4], **({"href": normalize_url(href, base, keep_query=True)} if href else {})})
                 if items:
-                    blocks.append({"type": "cards", "classes": child.classes[:4], "cards": items})
+                    blocks.append({"type": "cards", "classes": child.classes[:4], "cards": items, "_path": css_path(child)})
                 continue
             if tag in ("button",):
                 label = normalize_space(child.text())
                 if label:
-                    blocks.append({"type": "button", "label": label, "href": None, "action": child.get("data-target") or child.get("aria-controls") or None})
+                    action = child.get("data-target") or child.get("aria-controls") or None
+                    entry = {"type": "button", "label": label, "href": None, "action": action, "_path": css_path(child)}
+                    if action:
+                        entry["_target"] = control_target(node, action)
+                    blocks.append(entry)
                 continue
             walk(child)
 
@@ -352,6 +540,16 @@ def content_root(document: Node, selector: str | None) -> Node:
     return body
 
 
+def css_path(node: Node) -> str:
+    """body > … > tag:nth-child(n) path, so capture_pages.mjs can measure this exact element on the source."""
+    parts = []
+    while node is not None and node.parent is not None and node.tag not in ("body", "html", "#root"):
+        siblings = node.parent.element_children()
+        parts.append(f"{node.tag}:nth-child({next(index for index, sibling in enumerate(siblings, 1) if sibling is node)})")
+        node = node.parent
+    return "body > " + " > ".join(reversed(parts)) if parts else "body"
+
+
 def is_ignorable(node: Node) -> bool:
     """Skip links, screen-reader-only text and hidden nodes: never sections, never wrappers."""
     if node.tag in NOISE_TAGS or "hidden" in node.attrs or SKIP_HINT.search(node.get("class")):
@@ -382,11 +580,11 @@ def section_nodes(root: Node) -> list[Node]:
         holders = [child for child in children if child.find("main") is not None or any(inner.get("role") == "main" for inner in child.iter())]
         if main is None and len(holders) == 1 and len(children) > 1:
             # <main> sits inside a wrapper beside the header/footer (classic WordPress themes: div.site).
-            holder = holders[0]
-            return [child for child in children if child is not holder] + section_nodes(holder)
+            main = holders[0]
         if main is not None:
-            # Header, local navigation, footer and modals stay as siblings; content comes from main.
-            return [child for child in children if child is not main] + section_nodes(main)
+            # Header, local navigation, footer and modals stay as siblings, in document order.
+            position = next(index for index, child in enumerate(children) if child is main)
+            return expand_chrome_wrappers(children[:position]) + section_nodes(main) + expand_chrome_wrappers(children[position + 1:])
         if len(children) == 1 and not is_flow_container(children[0]) and (
             children[0].tag in ("div", "main", "section", "article") or WRAPPER_HINT.search(children[0].get("class"))
         ):
@@ -396,6 +594,18 @@ def section_nodes(root: Node) -> list[Node]:
             return [node]
         return children
     return [node]
+
+
+def expand_chrome_wrappers(nodes: list[Node]) -> list[Node]:
+    """A wrapper holding the site <header> plus a section menu splits into its parts, so the menu
+    isn't dropped with the header (WordPress: div.site-header-container > header + local nav)."""
+    expanded = []
+    for node in nodes:
+        if node.tag not in ("header", "footer", "nav") and node.find("header") is not None and len(meaningful_children(node)) > 1:
+            expanded.extend(expand_chrome_wrappers(meaningful_children(node)))
+        else:
+            expanded.append(node)
+    return expanded
 
 
 def selected_sections(root: Node, selector: str) -> list[Node]:
@@ -551,6 +761,11 @@ LANGUAGE_NAMES = {"english", "español", "espanol", "français", "francais", "ne
 
 def chrome_summary(header: Node | None, footer: Node | None, base: str, site: str) -> dict:
     summary: dict = {"menu": [], "ctas": [], "logo": None, "languages": [], "footer": {"columns": [], "socials": [], "legal": None}}
+    if header is not None and any(
+        field.get("type") == "search" or field.get("name") in ("s", "q", "search", "query") for field in header.find_all("input")
+    ):
+        # Site search in the header → Grav's simplesearch (or tntsearch) at /search.
+        summary["search"] = True
     if header is not None:
         items = menu_tree(header, base)
         home = next((item for item in items if item.get("image") and item.get("url") and re.fullmatch(r"/(?:[a-z]{2}(?:-[a-z]{2})?)?", route_of(item["url"]))), None)
@@ -669,6 +884,10 @@ def markdown_from_blocks(blocks: list[dict]) -> str:
         elif kind == "cards":
             for item in block["cards"]:
                 out.append(markdown_from_blocks(item["blocks"]))
+        elif kind == "code":
+            out.append(f"```{block.get('language') or ''}\n{block['code']}\n```")
+        elif kind == "listing":
+            out.append("\n".join(f"- [{item['title']}]({item['href']})" for item in block["items"]))
         elif kind == "columns":
             for column in block["columns"]:
                 out.append(markdown_from_blocks(column["blocks"]))
@@ -684,11 +903,13 @@ def all_texts(blocks: list[dict]) -> list[str]:
     for block in blocks:
         if block.get("text"):
             texts.append(normalize_space(re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", block["text"]).replace("**", "").replace("*", "")))
-        texts.extend(normalize_space(item) for item in block.get("items", []))
+        texts.extend(normalize_space(item) for item in block.get("items", []) if isinstance(item, str))
         if block.get("label"):
             texts.append(block["label"])
         for card in block.get("cards", []) + block.get("columns", []):
             texts.extend(all_texts(card["blocks"]))
+        for item in block.get("items", []) if block["type"] == "listing" else []:
+            texts.extend(all_texts(item.get("blocks") or [{"type": "text", "text": item.get("title") or ""}]))
     return [text for text in texts if text]
 
 
@@ -702,6 +923,8 @@ def media_refs(blocks: list[dict]) -> list[str]:
             refs.append(block["poster"])
         for card in block.get("cards", []) + block.get("columns", []):
             refs.extend(media_refs(card["blocks"]))
+        for item in block.get("items", []) if block["type"] == "listing" else []:
+            refs.extend(media_refs(item.get("blocks", [])) or ([item["image"]] if item.get("image") else []))
         refs.extend(image["src"] for image in block.get("images", []))
     return refs
 
@@ -757,11 +980,18 @@ def main() -> int:
         header = footer = None
         sections = []
         section_nodes_kept: list[Node] = []
+        main_node = document.find("main")
         for position, node in enumerate(nodes):
             key = section_key(node)
             repeated = key_counts[lang][key] >= threshold
-            chrome = is_chrome(node)
-            if chrome or (repeated and position in (0, len(nodes) - 1) and is_chrome_like_position(node)):
+            # Inside <main>, a <header>/<footer> is page content (a post list's footer band, a hero).
+            in_main = main_node is not None and (node is main_node or main_node in list(node.ancestors()))
+            # Only the last footer-like node is the site footer; an earlier one that isn't repeated
+            # site-wide is a content band (a newsletter/"follow us" footer template part).
+            later_footer = any(is_chrome(other) and re.search(r"footer", other.tag + other.get("class"), re.I) for other in nodes[position + 1:])
+            content_footer = later_footer and not repeated and re.search(r"footer", node.tag + node.get("class"), re.I)
+            chrome = is_chrome(node) and not in_main and not content_footer
+            if chrome or (not in_main and repeated and position in (0, len(nodes) - 1) and is_chrome_like_position(node)):
                 if node.tag == "footer" or re.search(r"footer", node.get("class") + node.get("id"), re.I) or position == len(nodes) - 1:
                     footer = footer or node
                 else:
@@ -778,6 +1008,8 @@ def main() -> int:
                 continue
             section = {
                 "id": node.get("id") or None,
+                "_path": css_path(node),
+                "_hint": normalize_space(node.text())[:60],
                 "tag": node.tag,
                 "classes": [cls for cls in node.classes if not GENERATED_CLASS.search(cls)][:6],
                 "backgrounds": background_images(node, page["url"]),
@@ -796,7 +1028,8 @@ def main() -> int:
                 section["role"] = "subnav"
                 unique = {}
                 for block in blocks:
-                    unique.setdefault(repr(sorted(block.items())), block)
+                    # Compare content only: the desktop and mobile copies sit at different paths.
+                    unique.setdefault(repr(sorted((key, value) for key, value in block.items() if not key.startswith("_"))), block)
                 section["blocks"] = blocks = list(unique.values())
             if node.tag == "dialog" or re.search(r"modal|popup|lightbox|overlay", node.get("class"), re.I):
                 section["modal"] = True
@@ -811,6 +1044,22 @@ def main() -> int:
                 section = {"shared": shared_id, "classes": section["classes"]}
             sections.append(section)
             section_nodes_kept.append(node)
+        listings = [block for section in sections for block in section.get("blocks", []) if block["type"] == "listing"]
+        if listings:
+            scope = main_node or document
+            primary = max(listings, key=lambda block: len(block["items"]))
+            pages = pagination_info(scope)
+            if pages:
+                primary["pagination"] = {"pages": pages["pages"], "per_page": len(primary["items"])}
+            search_form = scoped_search(document, page["url"])
+            if search_form is not None:
+                # The collection renders its own search box; the source form would duplicate it.
+                primary["search"] = True
+                signature = forms_by_node.get(id(search_form))
+                if signature:
+                    for section in sections:
+                        if "blocks" in section:
+                            section["blocks"] = drop_blocks(section["blocks"], lambda block: block.get("type") == "form" and block.get("ref") == signature)
         if lang not in chrome_by_lang and (header is not None or footer is not None):
             chrome_by_lang[lang] = chrome_summary(header, footer, page["url"], site)
         kind, article_node = page_kind([section for section in sections if "blocks" in section], document)
@@ -825,8 +1074,10 @@ def main() -> int:
             # Swap only the rich-text node for a {type: body} block; the hero, related cards and CTAs
             # around it (often in the same section) stay structured.
             for position, node in enumerate(section_nodes_kept):
-                if "blocks" in sections[position] and (node is article_node or node in list(article_node.ancestors())):
-                    if node is article_node:
+                within_article = article_node in list(node.ancestors())
+                if "blocks" in sections[position] and (node is article_node or within_article or node in list(article_node.ancestors())):
+                    if node is article_node or within_article:
+                        # The section sits inside the article: the Markdown body replaces it, never both.
                         sections[position]["blocks"] = [{"type": "body"}]
                     else:
                         parent = article_node.parent
@@ -883,9 +1134,12 @@ def is_nested_site_nav(node: Node) -> bool:
     """A site header/menu nested inside a content section (Webflow puts the navbar inside heroes)."""
     if node.tag not in ("nav", "header") and node.get("role") not in ("navigation", "banner") and not re.search(r"\b(navbar|site-header|main-nav|w-nav)\b", node.get("class")):
         return False
+    if any(ancestor.tag == "article" or LISTING_ITEM_HINT.search(ancestor.get("class")) for ancestor in [node, *node.ancestors()]):
+        return False  # a post's entry header (title + terms links) is content, not the site menu
     anchors = node.find_all("a")
     home_logo = any(anchor.find("img") is not None and re.fullmatch(r"/(?:[a-z]{2}(?:-[a-z]{2})?)?", urlsplit(anchor.get("href") or "#").path or "/") for anchor in anchors)
-    return len(anchors) >= 3 and (home_logo or bool(re.search(r"nav|header|menu", node.get("class"), re.I)))
+    site_menu_class = re.search(r"(?:^|[\s_-])(nav|navbar|menu|site-header|global-header|main-header|masthead)(?:$|[\s_-])", node.get("class"), re.I)
+    return len(anchors) >= 3 and (home_logo or bool(site_menu_class))
 
 
 def is_chrome_like_position(node: Node) -> bool:

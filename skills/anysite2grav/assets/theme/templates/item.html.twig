@@ -1,0 +1,15 @@
+{% extends 'partials/base.html.twig' %}
+
+{# A collection item (post, product, directory entry). Items made from a listing are not routable
+   and link to `link`; set routable: true to publish one as a page of its own. #}
+{% block content %}
+  <article class="section">
+    <div class="container prose">
+      <h1>{{ page.title }}</h1>
+      {% if page.header.date %}<p class="collection__meta"><time datetime="{{ page.date|date('c') }}">{{ page.date|date(config.theme.date_format ?: 'F j, Y') }}</time></p>{% endif %}
+      {% set image = page.header.image ? theme_media(page.header.image, page) : null %}
+      {% if image %}<img class="block-image" src="{{ image.url }}" alt="">{% endif %}
+      {{ page.content|raw }}
+    </div>
+  </article>
+{% endblock %}

@@ -1,0 +1,33 @@
+title: Collection item
+# A post, product or directory entry listed by a `collection` block. Fields mirror what listings
+# show; the Markdown body holds the rest. Learn: https://learn.getgrav.org/2/content/collections
+extends@:
+  type: default
+  context: blueprints://pages
+
+form:
+  fields:
+    tabs:
+      fields:
+        content:
+          fields:
+            header.date:
+              type: datetime
+              label: Date
+              ordering@: header.title
+            header.summary:
+              type: textarea
+              label: Summary
+              help: Shown on cards
+              ordering@: header.date
+            header.image:
+              type: media
+              label: Image
+              sources: [page, site, url]
+              accept: ['image/*']
+              ordering@: header.summary
+            header.link:
+              type: text
+              label: Link
+              help: Where the listing links to (defaults to this page's own URL)
+              ordering@: header.image

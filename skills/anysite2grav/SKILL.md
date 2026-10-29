@@ -7,6 +7,8 @@ description: Converts a live website (Webflow, WordPress, Squarespace, Wix, Fram
 
 Turn a live site into a local, editable Grav 2 copy that is as close to 1:1 as possible: same URLs and sitemap, same content and media, equivalent forms and analytics, a theme that looks the same, and an Admin + API + MCP setup so the user's agent can keep editing.
 
+**Fidelity contract:** the deliverable is a new Grav site with a new theme and source-specific page/module templates, matching blueprints, Markdown content, and equivalent working features. The import scripts and generic theme produce a draft. Exact layout, responsive rules, typography, spacing, colors, highlights, borders and interaction states must survive the conversion. Read [references/fidelity.md](references/fidelity.md) before designing the content types or styling. Do not call the scaffold a finished migration.
+
 All helpers live in `scripts/` (Python 3.9+ stdlib, PHP 8.3+, Node 18+). Run them from the project folder. Every script has `--help` and is safe to rerun.
 
 ## Project layout
@@ -32,12 +34,12 @@ Copy this checklist into your progress notes and tick it off. Each phase ends wi
 - [ ] 4. Routes discovered (crawl_site.py) and reviewed with the user
 - [ ] 5. Audit reviewed: analytics, forms, embeds, fonts, languages (audit_site.py)
 - [ ] 6. STOP: decisions asked and answered (theme name, Tailwind or built-in CSS, languages, forms, analytics)
-- [ ] 7. Content extracted (no single-section warnings) + media imported (extract_content.py, import_media.py)
-- [ ] 8. Pages built (build_pages.py) as Markdown + frontmatter, modular where long, YAML lint clean, every route 200
-- [ ] 9. Theme scaffolded with source tokens (capture_pages.mjs, scaffold_theme.py)
+- [ ] 7. Source compositions and interactions inventoried at desktop/tablet/mobile; page/module types and blueprint fields mapped; content extracted and media imported
+- [ ] 8. Draft content imported as native Markdown/frontmatter; omissions recorded; specialized type transforms are reproducible
+- [ ] 9. New theme and one representative page finished with dedicated templates/blueprints, exact responsive styling and working plugins before expanding layouts
 - [ ] 10. Forms converted and test-submitted (build_forms.py)
 - [ ] 11. Analytics ported per the user's choice
-- [ ] 12. Fidelity loop per layout cluster until parity + visual sign-off
+- [ ] 12. Every route and design family checked; component/state measurements, full-color screenshots, interactions and CMS edits pass; no unapproved omissions
 - [ ] 13. Final verification, git commit, handoff summary
 ```
 
@@ -90,36 +92,52 @@ Ask together, with a recommended default for each:
 2. **Languages** (only if more than one): native Grav multilang (`page.<lang>.md`, one tree; recommended when hreflang maps the pages) or separate trees per language prefix (`--languages trees`).
 3. **Forms**: per form or as a default: delivery (save to `user/data`, email via SMTP, webhook, or keep a third-party embed), CAPTCHA (Grav's built-in **Cap**: invisible, self-hosted, no keys; Turnstile; reCAPTCHA; basic; none), success behavior (inline message, redirect, thank-you page). Options and trade-offs: [references/forms.md](references/forms.md).
 4. **Analytics**: port as-is but load **only on the production hostname** (recommended), add consent gating, keep only some tags, or drop them. Details: [references/analytics-seo.md](references/analytics-seo.md).
+5. **Site features** the audit and crawl found: inventory header search, pagination, filters, sorting, feeds, code, galleries and comments. A requested 1:1 copy already calls for reproducing these. Propose compatible core/plugin implementations and ask only about provider, paid-license or scope choices that need the user. A smaller crawl does not authorize removing features. Map: [references/grav-features.md](references/grav-features.md).
 
 Record the answers (and the rejected options) in the project notes; later phases depend on them.
 
-### 7–8. Content, media, pages
+### 7–8. Source model, content and draft import
+
+Before bulk implementation, inspect the rendered source and its CSS at multiple widths and applicable hover/focus/open/selected states. Use [references/fidelity.md](references/fidelity.md) to map each distinct composition to a named page or module kind, its blueprint fields, Markdown body, media and plugins. Recover exact responsive rules from source CSS; a desktop measurement alone is insufficient. Use extracted blocks as import data, not as a ceiling on the new theme's design.
+
+The following imports a draft tree. Finish one representative page per design family before expanding its specialized templates across the site.
 
 ```bash
-python3 $S/extract_content.py migration          # sections → blocks, chrome, clusters
+python3 $S/extract_content.py migration          # sections → blocks, chrome, listings, clusters
+node $S/measure_layout.mjs --migration migration --source https://example.com   # computed layout per section/block
 python3 $S/import_media.py migration             # download once, dedupe by hash
-python3 $S/build_pages.py migration --grav grav [--languages native|trees] [--template-map map.json] [--modular-threshold 3]
+python3 $S/build_pages.py migration --grav grav --allow-incomplete [--languages native|trees] [--template-map map.json] [--modular-threshold 3] [--collections auto|off]
+(cd grav && bin/gpm install <plugins chosen in phase 6> -y)
 php $S/grav_config.php grav lint user            # every frontmatter + YAML parses
 ```
 
 - `extract_content.py` keeps **every text block**, including the leaf `<div>`/`<span>` text that builders use instead of `<p>`, and repeated card grids, side-by-side `columns`, galleries, background videos and modals. It splits site chrome (header/footer, section menus), skips skip-links and screen-reader text, and stores sections repeated across pages (`shared-sections.json`). Each section gets a semantic **`tone`** (light, muted, dark, accent) and **`space`** (none–xl) resolved from the source CSS, instead of builder classes. It clusters routes by layout (`content-index.json → clusters`).
+- **Listings → collections.** Repeated items with collection signals (post or CMS-item markup, dates, pagination, a page-scoped search) become a `listing`, and `build_pages.py` writes a Grav **collection**: real item pages with `date`, `taxonomy`, `image` and `summary`, plus pagination, `/category:x` filters and search through Grav. Ordinary navigation cards stay cards. Details: [references/grav-features.md](references/grav-features.md).
+- **`measure_layout.mjs` provides initial layout hints.** It opens each source page and measures every extracted section and layout block:
+  - **Sections:** background, spacing (padding or the visible inset), dividers, alignment, and split layouts (heading beside content, with its ratio and rule).
+  - **Blocks:** column ratios, cards per row, card style, image shape and filters, full-bleed rows, and inline link lists and tabs (with the active item).
+  - **Type:** each heading's size and font.
+  - **Chrome:** the header's anatomy (height, full-width bar, nav type, logo, CTA button), its color per page, and form inputs. `build_pages.py` writes these as semantic frontmatter (`tone`, `space`, `divider`, `layout: split`, `ratio`, `per_row`, `card`, `image_ratio`, heading `size`/`font`, `header_variant`). `scaffold_theme.py` turns the site-wide values into tokens (type scale, font roles, header variant colors). Without it the theme falls back to generic layouts, so run it before `build_pages.py`, and rerun both after changing the extraction.
+- **Unimplemented controls keep the draft incomplete.** The builder records route, label, action and source path in `unresolved-controls.json`, and exits nonzero unless `--allow-incomplete` was explicitly used for a draft import. Rebuild every required control with real content/data, plugin integration and source-matching styling. The draft flag permits iteration; it never approves removing functionality. Pagination and page-scoped search belong to their collection. Verify them with enough imported records to exercise next/previous, filters and empty states.
 - **Gate:** if it warns that composed pages came out as a single section (`content-index.json → quality.monolith_pages`), the splitter missed the page structure. Open one page in `html/`, find the element that wraps each horizontal band, and rerun with `--section-selector` (or `--main-selector`). Never work around it by writing pages as raw HTML. If no selector fixes it, report it as a skill bug with the route.
 - `build_pages.py` preserves every URL. It writes exact source `<title>` (`head_title`), descriptions and OG tags, provenance (`source.url`), `sections` for composed pages and a Markdown body for articles.
 - **Modular rule:** a composed page with more than three distinct horizontal sections (shared sections count, popups don't) becomes a Grav **modular page**: `modular.md` plus one module per section (`01._hero/hero.md`, `02._<heading>/cards.md`, …), each with its own media and Admin form. Three or fewer stay one page with a larger `sections` frontmatter. Articles and template-mapped pages are never modular. If the user wants a different cut-off, pass `--modular-threshold N` or `--modular off`. Shared sections become non-routable pages under `/shared`, missing parents become non-routable folders, and source redirects go to `system.yaml`. Images used on one page sit beside it; repeated ones go to `user/media/images` (`media://images/…`); PDFs go to `user/media/files`.
 - Rerun after improving extraction. Pass `--template-map` to assign cluster ids or route regexes to page types (see phase 12).
 
-**Check:** lint clean, `bin/grav clearcache`, every route returns 200, `list_pages` over MCP shows the new tree, and page files contain frontmatter + Markdown only (no copied source markup). Content model, frontmatter schema and multilang: [references/content-model.md](references/content-model.md).
+**Draft check:** lint clean, `bin/grav clearcache`, every route returns 200, `list_pages` over MCP shows the new tree, page files contain frontmatter + Markdown only, and omissions are visible in the report. These checks establish an import, not visual or functional completion. Content model, frontmatter schema and multilang: [references/content-model.md](references/content-model.md).
 
-### 9. Theme
+### 9. New theme and a finished representative page
 
 ```bash
 node $S/capture_pages.mjs --migration migration --source https://example.com --tokens-only   # computed styles
 python3 $S/scaffold_theme.py migration --grav grav --name acme [--tailwind] [--fonts download|link|skip]
 ```
 
-Run `capture_pages.mjs --tokens-only` first so the scaffold reads measured tokens. Pass `--tailwind` only if the user chose Tailwind in phase 6. This creates a standalone theme with no parent. Shared design is standardized in the theme: tone backgrounds and spacing steps come from the source's most used values (`--tone-*`, `--space-*`), and the source's own rules for the classes pages still use are **ported once, deduplicated, onto `.src-*` hooks** (`css/src/source.css`); per-page generated classes (`wp-container-*`, `w-node-*`) are dropped. It also includes a document shell, a `sections`/`blocks` renderer, header/footer/menus/CTAs/socials from theme config (Admin-editable per language), a language switcher with hreflang, noindex on local/preview hosts, host-gated analytics partials, `/forms` embedding, modals as `<dialog>`, Admin blueprints for `sections` and `form`, `DESIGN.md`, and design tokens from the source. Fonts copied from the source need license confirmation before production: say so. If it reports header CTAs that open a popup (`href="#"`), click each one on the source to see which dialog opens, then set `navigation.<lang>.ctas[].modal` to that `/shared` section name. Theme structure, Tailwind and styling: [references/theme.md](references/theme.md).
+Run `capture_pages.mjs --tokens-only` first so the scaffold reads measured tokens. This is a starting shell: its inferred tokens, four tones and spacing steps are lossy. Preserve exact source values and build dedicated layout CSS/Twig where needed, following [references/fidelity.md](references/fidelity.md). Pass `--tailwind` only if the user chose Tailwind in phase 6. This creates a standalone theme with no parent. Shared design is standardized in the theme: tone backgrounds and spacing steps come from the source's most used values (`--tone-*`, `--space-*`), and the source's own rules for the classes pages still use are **ported once, deduplicated, onto `.src-*` hooks** (`css/src/source.css`); per-page generated classes (`wp-container-*`, `w-node-*`) are dropped. It also includes a document shell, a `sections`/`blocks` renderer, header/footer/menus/CTAs/socials from theme config (Admin-editable per language), a language switcher with hreflang, noindex on local/preview hosts, host-gated analytics partials, `/forms` embedding, modals as `<dialog>`, Admin blueprints for `sections` and `form`, `DESIGN.md`, and design tokens from the source. Fonts copied from the source need license confirmation before production: say so. If it reports header CTAs that open a popup (`href="#"`), click each one on the source to see which dialog opens, then set `navigation.<lang>.ctas[].modal` to that `/shared` section name. Theme structure, Tailwind and styling: [references/theme.md](references/theme.md).
 
 Use the [Quark2 conventions reference](references/quark2-conventions.md) when extending the shell, Admin fields or modules. The scaffold adopts deferred asset output and reusable blueprint fields while keeping source styling. Add project CSS in `css/custom.css`; extend Twig blocks with `parent()` when adding assets. `--force` preserves site settings and theme blueprints; `--reset-config --force` explicitly replaces site settings from the audit, and `--force-templates` replaces skeleton files. Check the diff before either replacement flag.
+
+Complete the shared chrome and a difficult representative page with its actual page/module types, named blueprint fields, Markdown, plugins and responsive/state styles. Test an inner-page header variant too. Edit representative fields in Admin/API and inspect the rendered changes. Only then propagate that design family. Keep shared content in data and source-specific layout in theme templates; do not hardcode page copy in Twig.
 
 ### 10. Forms
 
@@ -135,17 +153,26 @@ Each form becomes `/forms/<name>` (posts to itself, XHR submit, noindex) and is 
 
 Put the IDs in `user/config/themes/<theme>.yaml → analytics` (GTM/GA4 are pre-filled, disabled). Paste other vendors' snippets into `head_snippets`/`body_snippets` after the user approves each one. Set `analytics.hosts` to the production hostnames and `enabled: true` only if the user chose to port. **Check:** the local page source contains no tracker requests.
 
-### 12. Fidelity loop (the part that makes it 1:1)
+### 12. Finish every design family and prove fidelity
 
-Work cluster by cluster, largest first (`content-index.json → clusters`):
+Follow [references/fidelity.md](references/fidelity.md) for the component-plan format, responsive/state coverage, specialized templates and plugin styling.
 
-1. `node $S/capture_pages.mjs --migration migration --source <url> --local <local-url> --routes <example routes> --metrics` and open `migration/screens/report.html` (or view the `-fold.png` images) at 1440px and 390px. While iterating, add `--only local` to reuse the source shots. `--metrics` lists each section's height, padding, background and heading size/weight/line-height for source and local side by side: fix measured differences rather than eyeballing.
-2. Fix the biggest visual gap first, in this order: tokens (`tokens.css`: palette, type scale, tone and space steps) → section `tone`/`space` in frontmatter → `.src-<class>` hooks in `css/custom.css` → a specialized module kind or page type. Add interactions the source has (tabs, carousels, accordions, sticky header, hover states), keeping them accessible and reduced-motion aware. **Never** close a gap by pasting the source's page markup into a page or `html` block, or by loading the source's stylesheets per page. That trades an editable site for a screenshot match, and it is the one result this skill must not produce. If a layout can't be reached with these tools, keep the closest structured version and list the gap in the handoff.
-3. When a section design recurs across pages (every hero, every feature grid), **specialize its module kind**: named fields in `templates/modular/<kind>.html.twig` + `blueprints/pages/modular/<kind>.yaml`, filled by a fixup script. When a whole cluster of pages needs named fields, **promote it to a page type**: `templates/<type>.html.twig` + `blueprints/pages/<type>.yaml` with real fields. Derive the fields by reading the source HTML of two or three routes in the cluster (cleaner than the flattened blocks). Fill them with a rerunnable project script that runs **after** `build_pages.py`. Keep blueprint and template in step.
-   Keep every project-specific fix (page-type transforms, modal wiring, extra imports) as a rerunnable script in `migration/fixups/`, and list the rebuild order (`build_pages` → fixups → `build_forms` → clear cache) in `migration/notes.md`, so reruns of the generic scripts never lose hand work.
-4. `python3 $S/verify_parity.py migration --local <local-url> --expect-noindex` until every route passes.
+1. Expand the proven representative layouts using source-specific Twig templates, matching blueprints and rerunnable content transforms. Generic blocks may remain where they express the design accurately. Give new modules/page types named fields instead of forcing every composition through the generic renderer. Build functionality with [Grav core and compatible plugins](references/grav-features.md), overriding plugin templates in the theme to match the source.
+2. Pair source and local selectors in a component plan. Measure outer sections and their inner headings, paragraphs, images, controls and repeated items at desktop/tablet/mobile and source breakpoints. Include hover, keyboard focus, selected/open/error states where applicable:
 
-Iterate until the screenshots match and the verifier is green. Then show the user the side-by-side report and ask for sign-off. Visual review guidance: [references/verification.md](references/verification.md).
+   ```bash
+   node $S/compare_components.mjs --plan <plan.json> --source <url> --local <local-url> --out migration/components --tools migration/.tools
+   node $S/capture_pages.mjs --migration migration --source <url> --local <local-url> --routes <routes> --metrics
+   python3 $S/verify_parity.py migration --local <local-url> --expect-noindex
+   ```
+
+3. Fix actual differences in geometry, typography/wrapping, padding/margins/gaps, color/highlights, borders/radii/shadows, image crops and interaction states. Preserve exact source values in reusable theme components; do not round away a visible difference to fit a preset. The screenshot tool's grayscale score is only a triage hint, never a fidelity percentage or acceptance threshold.
+4. Check every route for content/order/header-variant drift and every design family with full-color fold/full-page screenshots. Exercise search, filters, sorting, pagination and forms; confirm result contents, empty/error states and URLs. Reconcile every draft omission against a working implementation or an explicit user-approved scope change. No control may simply disappear because extraction failed.
+5. Resolve the rendered blueprints and round-trip representative content, media and repeated fields in the running Admin/API. Reorder/hide a module and confirm the parent still works; test translated pages and plugin assets with cold/warm caches. Rerun affected routes after shared CSS changes.
+
+Keep project import transforms rerunnable and record their rebuild order in the user's working-doc store. `build_pages` → project transforms → `build_forms` → clear cache must reproduce the chosen content types and not silently overwrite editorial work.
+
+A passing text verifier or selected component comparison does not establish whole-site completion. Finish visible and functional differences, then present the actual result for user review. Unapproved missing features or visible layout drift remain incomplete work.
 
 ### 13. Finish
 
@@ -163,8 +190,8 @@ Iterate until the screenshots match and the verifier is green. Then show the use
 - **Don't fake integrations.** A form must store or send what it collects, and its success copy must say so. Never post to a guessed third-party endpoint.
 - **Admin2/API/MCP are local/authoring tools.** Production should not expose them (see setup.md for a deploy profile).
 - **Pages are Markdown + YAML frontmatter, never copied HTML.** Prose goes in the Markdown body; composed pages are `sections` frontmatter or modular pages (one module per horizontal section). An `html` block is a last resort for one widget (a third-party embed); report every one in the handoff.
-- **One theme, one stylesheet pipeline.** Shared design lives in the theme: `tokens.css` (palette, type, tone and space steps) → `components.css` → deduplicated `source.css` hooks → `custom.css`. Never ship per-page copies of source stylesheets or a builder's framework CSS wholesale. A theme whose CSS (fonts aside) grows past a few hundred KB has stopped being standardized.
-- **Prefer Grav's built-ins** (Form + Cap, Email, page media, `media://`, native multilang) over custom code.
+- **One theme, exact source design.** Reuse tokens for genuinely shared values; preserve distinct colors, exact/asymmetric spacing and responsive states in dedicated component CSS instead of forcing them into presets. Shared design lives in the theme: `tokens.css` (palette, type and measured shared values) → `components.css` → deduplicated `source.css` hooks → `custom.css`. Never ship per-page copies of source stylesheets or a builder's framework CSS wholesale. A theme whose CSS (fonts aside) grows past a few hundred KB has stopped being standardized.
+- **Prefer Grav's built-ins** (Form + Cap, Email, page media, `media://`, native multilang, collections, taxonomy) and official GPM plugins over custom code. Read the Grav Learn 2.x page for a feature before building it; 1.7 docs and memory are often out of date.
 - Write the why of each choice, including rejected options, where the user keeps project notes (default `migration/notes.md`).
 - Theme JS stays dependency-free; don't enable Form options that need jQuery (`keep_alive` loads `form.min.js`).
 
@@ -172,9 +199,11 @@ Iterate until the screenshots match and the verifier is green. Then show the use
 
 - [references/setup.md](references/setup.md): install, runtimes (PHP server, Docker, Valet/Herd), API/MCP auth, clients, HTTPS, tunnels, `.gitignore`, production profile, troubleshooting
 - [references/content-model.md](references/content-model.md): route→folder rules, frontmatter/`sections` schema, page types, multilang, shared sections, media, redirects, MCP editing
-- [references/theme.md](references/theme.md): theme anatomy, tokens, Tailwind, `.src-*` hooks, interactions, icons, fonts, accessibility
+- [references/fidelity.md](references/fidelity.md): source inventory, dedicated native content types, exact responsive/state styling, plugin output, component measurements and completion criteria
+- [references/theme.md](references/theme.md): scaffold anatomy, tokens, Tailwind, `.src-*` hooks, interactions, icons, fonts, accessibility
 - [references/quark2-conventions.md](references/quark2-conventions.md): official theme patterns, pinned sources, adoption criteria and source-fidelity boundaries
 - [references/forms.md](references/forms.md): form decisions, Grav Form YAML, CAPTCHA providers, email/SMTP, testing
 - [references/analytics-seo.md](references/analytics-seo.md): tracker porting, consent, SEO parity, sitemap, robots, llms.txt
 - [references/platforms.md](references/platforms.md): Webflow, WordPress, Squarespace, Wix, Framer, Shopify, SPAs
+- [references/grav-features.md](references/grav-features.md): source features → Grav core or official plugins (collections, pagination, filters, search, feeds, TOC, code, galleries), Grav Learn links, GPM
 - [references/verification.md](references/verification.md): acceptance checklist, verifier output, visual review, handoff template

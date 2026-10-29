@@ -19,8 +19,9 @@
   {% elseif not section.modal %}
     {% set background = theme_media(section.background, page) %}
     <section{% if section.id %} id="{{ section.id }}"{% endif %}
-      class="section {{ section.kind ? 'module--' ~ section.kind }} {{ section.tone ? 'tone-' ~ section.tone }} {{ section.space ? 'space-' ~ section.space }} {{ section.role ? 'section--' ~ section.role }} {% for class in section.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}{{ background ? 'section--background' }} {{ section.background_video ? 'section--video' }}"
-      {% if background %}style="--section-background: url('{{ background.url }}')"{% endif %}>
+      class="section {{ section.kind ? 'module--' ~ section.kind }} {{ section.tone ? 'tone-' ~ section.tone }} {{ section.space ? 'space-' ~ section.space }} {{ section.divider ? 'divider-' ~ section.divider }} {{ section.align ? 'align-' ~ section.align }} {{ section.layout ? 'layout-' ~ section.layout }} {{ section.split_divider ? 'split-divider' }} {{ section.role ? 'section--' ~ section.role }} {% for class in section.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}{{ background ? 'section--background' }} {{ section.background_video ? 'section--video' }}"
+      {% set inline = (background ? "--section-background: url('" ~ background.url ~ "');" : '') ~ (section.ratio ? '--split: ' ~ section.ratio|map(part => part ~ 'fr')|join(' ') ~ ';' : '') %}
+      {% if inline %}style="{{ inline }}"{% endif %}>
       {% if section.background_video %}
         {% set poster = theme_media(section.background_video.poster, page) %}
         <video class="section__video" autoplay muted loop playsinline aria-hidden="true" {% if poster %}poster="{{ poster.url }}"{% endif %}>

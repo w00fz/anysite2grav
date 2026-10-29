@@ -4,39 +4,88 @@ en:
   THEME_SKIP_TO_CONTENT: Skip to content
   THEME_MENU: Menu
   THEME_CLOSE: Close
+  THEME_ALL: All
+  THEME_SEARCH: Search
+  THEME_NO_RESULTS: No matching items.
+  THEME_PREVIOUS: Previous
+  THEME_NEXT: Next
+  THEME_PAGINATION: Pagination
+  THEME_FILTER: Filter
 es:
   THEME_SUBMENU: Submenú
   THEME_PRIMARY_NAV: Navegación principal
   THEME_SKIP_TO_CONTENT: Saltar al contenido
   THEME_MENU: Menú
   THEME_CLOSE: Cerrar
+  THEME_ALL: Todo
+  THEME_SEARCH: Buscar
+  THEME_NO_RESULTS: No hay resultados.
+  THEME_PREVIOUS: Anterior
+  THEME_NEXT: Siguiente
+  THEME_PAGINATION: Paginación
+  THEME_FILTER: Filtrar
 fr:
   THEME_SUBMENU: Sous-menu
   THEME_PRIMARY_NAV: Navigation principale
   THEME_SKIP_TO_CONTENT: Aller au contenu
   THEME_MENU: Menu
   THEME_CLOSE: Fermer
+  THEME_ALL: Tout
+  THEME_SEARCH: Rechercher
+  THEME_NO_RESULTS: Aucun résultat.
+  THEME_PREVIOUS: Précédent
+  THEME_NEXT: Suivant
+  THEME_PAGINATION: Pagination
+  THEME_FILTER: Filtrer
 nl:
   THEME_SUBMENU: Submenu
   THEME_PRIMARY_NAV: Hoofdnavigatie
   THEME_SKIP_TO_CONTENT: Naar de inhoud
   THEME_MENU: Menu
   THEME_CLOSE: Sluiten
+  THEME_ALL: Alles
+  THEME_SEARCH: Zoeken
+  THEME_NO_RESULTS: Geen resultaten.
+  THEME_PREVIOUS: Vorige
+  THEME_NEXT: Volgende
+  THEME_PAGINATION: Paginering
+  THEME_FILTER: Filteren
 de:
   THEME_SUBMENU: Untermenü
   THEME_PRIMARY_NAV: Hauptnavigation
   THEME_SKIP_TO_CONTENT: Zum Inhalt springen
   THEME_MENU: Menü
   THEME_CLOSE: Schließen
+  THEME_ALL: Alle
+  THEME_SEARCH: Suchen
+  THEME_NO_RESULTS: Keine Treffer.
+  THEME_PREVIOUS: Zurück
+  THEME_NEXT: Weiter
+  THEME_PAGINATION: Seitennavigation
+  THEME_FILTER: Filtern
 it:
   THEME_SUBMENU: Sottomenu
   THEME_PRIMARY_NAV: Navigazione principale
   THEME_SKIP_TO_CONTENT: Vai al contenuto
   THEME_MENU: Menu
   THEME_CLOSE: Chiudi
+  THEME_ALL: Tutti
+  THEME_SEARCH: Cerca
+  THEME_NO_RESULTS: Nessun risultato.
+  THEME_PREVIOUS: Precedente
+  THEME_NEXT: Successivo
+  THEME_PAGINATION: Paginazione
+  THEME_FILTER: Filtra
 pt:
   THEME_SUBMENU: Submenu
   THEME_PRIMARY_NAV: Navegação principal
   THEME_SKIP_TO_CONTENT: Ir para o conteúdo
   THEME_MENU: Menu
   THEME_CLOSE: Fechar
+  THEME_ALL: Todos
+  THEME_SEARCH: Pesquisar
+  THEME_NO_RESULTS: Nenhum resultado.
+  THEME_PREVIOUS: Anterior
+  THEME_NEXT: Próximo
+  THEME_PAGINATION: Paginação
+  THEME_FILTER: Filtrar

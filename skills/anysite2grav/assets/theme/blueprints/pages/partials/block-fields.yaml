@@ -15,7 +15,9 @@ form:
         embed: Embed (iframe)
         button: Button
         cards: Cards
+        collection: Collection (pages)
         columns: Columns (side by side)
+        code: Code
         gallery: Gallery / logo strip
         table: Table
         form: Form
@@ -40,6 +42,10 @@ form:
       type: array
       label: List items
       value_only: true
+    .active:
+      type: number
+      label: Highlighted item (0 = first)
+      validate: {type: int, min: 0}
     .src:
       type: media
       label: Image
@@ -65,8 +71,122 @@ form:
       label: Raw HTML
     .style:
       type: select
-      label: Gallery style
-      options: {photos: Photos, logos: Logos}
+      label: Style
+      options: {photos: Gallery – photos, logos: Gallery – logos, list: Collection – list, cards: Collection – cards, inline: List – inline links, tabs: List – tabs}
+    .from:
+      type: text
+      label: Collection items from (page route)
+      help: "Children of this page, e.g. /news/latest-posts"
+    .descendants:
+      type: toggle
+      label: Include all descendants
+      highlight: 0
+      default: 0
+      options: {1: Yes, 0: No}
+      validate: {type: bool}
+    .limit:
+      type: number
+      label: Items per page
+      validate: {type: int, min: 0}
+    .pagination:
+      type: toggle
+      label: Paginate
+      highlight: 1
+      default: 0
+      options: {1: Yes, 0: No}
+      validate: {type: bool}
+    .taxonomy:
+      type: text
+      label: Filter by taxonomy
+      help: "e.g. category: shows filter links and enables /category:<value> URLs"
+    .url_taxonomy_filters:
+      type: toggle
+      label: React to taxonomy filters in the URL
+      highlight: 1
+      default: 0
+      options: {1: Yes, 0: No}
+      validate: {type: bool}
+    .search:
+      type: toggle
+      label: Search box
+      highlight: 1
+      default: 0
+      options: {1: Yes, 0: No}
+      validate: {type: bool}
+    .order.by:
+      type: select
+      label: Order by
+      options: {default: Folder order, date: Date, title: Title, modified: Modified}
+    .order.dir:
+      type: select
+      label: Direction
+      options: {asc: Ascending, desc: Descending}
+    .size:
+      type: select
+      label: Size
+      help: A step of the site's type scale (tokens.css → --text-*)
+      options: {'': Default, display: Display, xl: XL, l: L, m: M, s: S, xs: XS, lead: Lead paragraph}
+    .font:
+      type: select
+      label: Font
+      options: {'': Default, heading: Heading font, body: Body font, alt: Alternate font}
+    .per_row:
+      type: number
+      label: Items per row (desktop)
+      validate: {type: int, min: 0}
+    .card:
+      type: select
+      label: Item style
+      options: {'': Theme default, plain: Plain, bordered: Bordered, filled: Filled, shadow: Shadow, divided: Divided rows}
+    .image_ratio:
+      type: select
+      label: Image shape
+      options: {'': Original, 1/1: Square, 4/3: 4:3, 3/2: 3:2, 16/9: 16:9, 21/9: 21:9, 3/4: Portrait 3:4, 2/3: Portrait 2:3}
+    .image_filter:
+      type: select
+      label: Image filter
+      options: {'': None, grayscale: Grayscale}
+    .bleed:
+      type: toggle
+      label: Full width (edge to edge)
+      highlight: 0
+      default: 0
+      options: {1: Yes, 0: No}
+      validate: {type: bool}
+    .gap:
+      type: select
+      label: Gap between items
+      options: {'': Theme default, none: None}
+    .title_size:
+      type: select
+      label: Item title size
+      options: {'': Default, display: Display, xl: XL, l: L, m: M, s: S, xs: XS}
+    .title_font:
+      type: select
+      label: Item title font
+      options: {'': Default, heading: Heading font, body: Body font, alt: Alternate font}
+    .ratio:
+      type: array
+      label: Column widths
+      value_only: true
+      help: fr units per column, e.g. 1 and 2
+    .divider:
+      type: toggle
+      label: Rules between columns
+      highlight: 0
+      default: 0
+      options: {1: Yes, 0: No}
+      validate: {type: bool}
+    .valign:
+      type: select
+      label: Vertical alignment
+      options: {'': Center, top: Top, bottom: Bottom}
+    .code:
+      type: textarea
+      label: Code
+    .language:
+      type: text
+      label: Code language
     .images:
       type: list
       label: Gallery images

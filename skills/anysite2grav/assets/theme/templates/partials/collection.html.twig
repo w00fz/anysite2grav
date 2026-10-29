@@ -1,0 +1,98 @@
+{#
+  A `collection` block: a Grav page collection rendered as a list or cards, with optional taxonomy
+  filters (/route/category:x), search (?q=) and pagination (/route/page:2). Items are pages, so
+  editors add, reorder and edit them in Admin. Learn: https://learn.getgrav.org/2/content/collections
+  Usage: {% include 'partials/collection.html.twig' with {block: block, page: page} %}
+#}
+{% set base = grav.page.url %}
+{% set source = block.from ?: page.route %}
+{% set items = block.descendants ? {'@page.descendants': source} : {'@page.children': source} %}
+{% set taxonomy = block.taxonomy ?: 'category' %}
+{% set query = (uri.query('q') ?? '')|trim %}
+{% set paginate = block.pagination and not query %}
+{% set params = {
+  items: items,
+  order: block.order ?? {by: 'default', dir: 'asc'},
+  limit: query ? 0 : (block.limit ?? 0),
+  pagination: paginate,
+  url_taxonomy_filters: block.url_taxonomy_filters ?? false
+} %}
+{% if block.descendants %}{% set params = params|merge({filter: {routable: true}}) %}{% endif %}
+{% set collection = page.collection(params, paginate) %}
+{% if query %}
+  {% set collection = collection|filter(item => query|lower in (item.title ~ ' ' ~ item.header.summary ~ ' ' ~ (item.taxonomy[taxonomy] ?? [])|join(' '))|lower) %}
+{% endif %}
+
+{% import 'partials/item-layout.html.twig' as grid %}
+<div class="collection collection--{{ block.style ?: 'list' }} {{ grid.classes(block) }}" style="{{ grid.style(block) }}">
+  {% if block.search or block.taxonomy %}
+    <div class="collection__tools">
+      {% if block.taxonomy %}
+        {% set all = page.collection({items: items, url_taxonomy_filters: false, pagination: false}, false) %}
+        {% set terms = [] %}
+        {% for item in all %}{% for term in item.taxonomy[taxonomy] ?? [] %}{% if term not in terms %}{% set terms = terms|merge([term]) %}{% endif %}{% endfor %}{% endfor %}
+        {% set active = uri.param(taxonomy) %}
+        <nav class="collection__filters" aria-label="{{ 'THEME_FILTER'|t }}">
+          <a href="{{ base }}"{% if not active %} aria-current="page"{% endif %}>{{ 'THEME_ALL'|t }}</a>
+          {% for term in terms %}
+            <a href="{{ base }}/{{ taxonomy }}{{ config.system.param_sep }}{{ term|url_encode }}"{% if active == term %} aria-current="page"{% endif %}>{{ term }}</a>
+          {% endfor %}
+        </nav>
+      {% endif %}
+      {% if block.search %}
+        <form class="collection__search" role="search" method="get" action="{{ base }}">
+          <label class="sr-only" for="collection-search-{{ block.from|md5 }}">{{ 'THEME_SEARCH'|t }}</label>
+          <input id="collection-search-{{ block.from|md5 }}" type="search" name="q" value="{{ query }}" placeholder="{{ 'THEME_SEARCH'|t }}">
+          <button type="submit" aria-label="{{ 'THEME_SEARCH'|t }}"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if collection|length %}
+    <ul class="collection__items" role="list">
+      {% for item in collection %}
+        {% set link = item.header.link ?: item.url %}
+        {% set image = item.header.image ? theme_media(item.header.image, item) : null %}
+        <li class="collection__item">
+          {% if image and block.style != 'list' %}
+            <a class="collection__media" href="{{ link }}" tabindex="-1" aria-hidden="true"><img src="{{ image.url }}" alt="" loading="lazy"></a>
+          {% endif %}
+          <h3 class="collection__title"><a href="{{ link }}">{{ item.title }}</a></h3>
+          {% set terms = item.taxonomy[taxonomy] ?? [] %}
+          {% if terms or item.header.date %}
+            <p class="collection__meta">
+              {% for term in terms %}<a href="{{ base }}/{{ taxonomy }}{{ config.system.param_sep }}{{ term|url_encode }}">{{ term }}</a>{{ not loop.last ? ', ' }}{% endfor %}
+              {% if terms and item.header.date %}<span aria-hidden="true"> · </span>{% endif %}
+              {% if item.header.date %}<time datetime="{{ item.date|date('c') }}">{{ item.date|date(config.theme.date_format ?: 'F j, Y') }}</time>{% endif %}
+            </p>
+          {% endif %}
+          {% if item.header.summary and block.style != 'list' %}<p class="collection__summary">{{ item.header.summary }}</p>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="collection__empty">{{ 'THEME_NO_RESULTS'|t }}</p>
+  {% endif %}
+
+  {% if paginate %}
+    {% set pagination = collection.params.pagination ?? null %}
+    {% if pagination and config.plugins.pagination.enabled %}
+      {# The official pagination plugin: configurable delta, rel prev/next. #}
+      {% include 'partials/pagination.html.twig' with {base_url: base, pagination: pagination} %}
+    {% else %}
+      {% set total = page.collection(params|merge({limit: 0, pagination: false}), false)|length %}
+      {% set pages = block.limit ? ((total / block.limit)|round(0, 'ceil')) : 1 %}
+      {% set current = (uri.param('page') ?: 1) * 1 %}
+      {% if pages > 1 %}
+        <nav class="collection__pagination" aria-label="{{ 'THEME_PAGINATION'|t }}">
+          {% if current > 1 %}<a rel="prev" href="{{ base }}{{ current > 2 ? '/page' ~ config.system.param_sep ~ (current - 1) }}">{{ 'THEME_PREVIOUS'|t }}</a>{% endif %}
+          {% for number in 1..pages %}
+            <a href="{{ base }}{{ number > 1 ? '/page' ~ config.system.param_sep ~ number }}"{% if number == current %} aria-current="page"{% endif %}>{{ number }}</a>
+          {% endfor %}
+          {% if current < pages %}<a rel="next" href="{{ base }}/page{{ config.system.param_sep }}{{ current + 1 }}">{{ 'THEME_NEXT'|t }}</a>{% endif %}
+        </nav>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+</div>

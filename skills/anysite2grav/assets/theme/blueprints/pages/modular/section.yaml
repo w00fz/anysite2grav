@@ -32,6 +32,30 @@ form:
               label: Spacing
               help: Vertical padding step from the theme scale (tokens.css → --space-*)
               options: {'': Theme default, none: None, s: Small, m: Medium, l: Large, xl: Extra large}
+            header.layout:
+              type: select
+              label: Layout
+              options: {'': Stacked, split: Split (heading beside content)}
+            header.ratio:
+              type: array
+              label: Split ratio
+              value_only: true
+              help: Column widths as fr units, e.g. 1 and 2.75
+            header.split_divider:
+              type: toggle
+              label: Rule between split columns
+              highlight: 1
+              default: 0
+              options: {1: Yes, 0: No}
+              validate: {type: bool}
+            header.divider:
+              type: select
+              label: Divider line
+              options: {'': None, top: Top, bottom: Bottom, both: Top and bottom}
+            header.align:
+              type: select
+              label: Text alignment
+              options: {'': Start, center: Center}
             header.classes:
               type: array
               label: Style hooks

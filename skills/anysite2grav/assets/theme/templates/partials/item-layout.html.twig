@@ -1,0 +1,24 @@
+{#
+  Shared item-grid styling for cards and collections, from measured source layout:
+  per_row, card (plain|bordered|filled|shadow|divided), image_ratio, image_filter, bleed, gap, title_size,
+  title_font (body|heading|alt).
+  Usage: {% import 'partials/item-layout.html.twig' as grid %} … class="{{ grid.classes(block) }}" style="{{ grid.style(block) }}"
+#}
+{% macro classes(layout) -%}
+  {{ [
+    layout.card ? 'items--' ~ layout.card,
+    layout.image_filter ? 'media-' ~ layout.image_filter,
+    layout.bleed ? 'bleed',
+    layout.gap == 'none' ? 'items--flush',
+  ]|filter(value => value)|join(' ') }}
+{%- endmacro %}
+
+{% macro style(layout) -%}
+  {{ [
+    layout.per_row ? '--per-row: ' ~ layout.per_row,
+    layout.image_ratio ? '--item-ratio: ' ~ layout.image_ratio,
+    layout.title_size ? '--item-title-size: var(--text-' ~ layout.title_size ~ ')',
+    layout.title_font ? '--item-title-font: var(--font-' ~ layout.title_font ~ ')',
+    layout.title_weight ? '--item-title-weight: ' ~ layout.title_weight,
+  ]|filter(value => value)|join('; ') }}
+{%- endmacro %}

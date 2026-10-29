@@ -59,6 +59,11 @@ sections:
     tone: dark                    # light | muted | dark | accent → theme --tone-* colors
     space: l                      # none | s | m | l | xl → theme --space-* padding
     role: subnav                  # optional: a section menu bar under the header
+    divider: bottom               # top | bottom | both: a rule like the source's
+    align: center
+    layout: split                 # heading beside the content…
+    ratio: [1, 2.75]              # …at the source's measured column widths
+    split_divider: true           # …with a vertical rule between them
     classes: [section, black]     # source classes → .src-section .src-black hooks
     background: hero.jpg          # page file, media://, theme:// or URL
     background_video: {sources: [hero.mp4], poster: hero.jpg}
@@ -68,7 +73,12 @@ sections:
       - {type: text, text: "Paragraph markdown with [links](/x)"}
       - {type: list, ordered: false, items: ["one", "two"]}
       - {type: list, title: "The details", items: ["[License](/license)"]}  # a menu group
-      - {type: columns, columns: [{blocks: [ … ]}, {blocks: [ … ]}]}       # side by side
+      - {type: list, style: tabs, active: 0, size: small, items: ["[Popular](/themes)", "[Latest](/themes/latest)"]}
+      - {type: columns, columns: [{blocks: [ … ]}, {blocks: [ … ]}], ratio: [1, 2], divider: true, valign: top}
+      - {type: collection, from: /news/latest-posts, style: list, limit: 5, pagination: true,
+         taxonomy: category, url_taxonomy_filters: true, search: true, per_row: 3, card: plain,
+         image_ratio: 4/3, title_size: l, title_font: alt}            # Grav page collection
+      - {type: code, code: "<?php echo 1;", language: php}
       - {type: quote, text: "…"}
       - {type: image, src: photo.jpg, alt: "…", href: /optional-link}
       - {type: video, sources: [clip.mp4], poster: still.jpg, autoplay: false}
@@ -82,6 +92,8 @@ sections:
 ```
 
 Articles (pages with one dominant rich-text region) keep their surrounding sections (hero, related cards, CTAs, modals). Only the rich-text element is replaced, by a `{type: body}` block (`body_slot: true` in the header), and the Markdown body renders in that slot; editors edit the article as normal page content.
+
+Headings carry `size` (a step of the site's type scale: display, xl, l, m, s, xs) and `font` (heading, body, alt) when the source differs from the default, and paragraphs can be `size: lead`. Cards and collections carry `per_row`, `card` (plain, bordered, filled, shadow, divided), `image_ratio`, `image_filter`, `bleed` and `gap`. Pages whose source header uses other colors get `header_variant: alt`. All of these come from `measure_layout.mjs` (`migration/layout.json`). These are lossy draft options, not the final design contract. Preserve additional source values and responsive/state behavior through purpose-built theme components; see [fidelity.md](fidelity.md).
 
 `tone` and `space` are the standardized style: the extractor resolves them from the source's computed background and inline padding, the theme defines each step once, and editors pick from a short list in Admin. `classes` stay as `.src-*` hooks for what tokens can't express. Block `classes` are kept only when the source CSS styles them (typography presets, for example).
 
@@ -122,7 +134,7 @@ Why modules instead of a long `sections` list: each section gets its own Admin p
 
 ## Promoting a layout cluster to a page type
 
-The generic `sections` page reproduces content faithfully, but editors get a generic block list. When several routes share a layout (a cluster in `content-index.json`), or one key page (home) has a distinctive composition, give it a page type:
+The generic `sections` page is an initial content import; it does not establish faithful layout or useful editing fields. Plan the final page/module types from the rendered source before expanding them across routes ([fidelity.md](fidelity.md)). When several routes share a layout (a cluster in `content-index.json`), or one key page (home) has a distinctive composition, give it a page type:
 
 1. Pick names from the source's own vocabulary (`product`, `case-study`, `solution`). Read the source HTML of a few routes in the cluster to design the fields; it's cleaner than the flattened blocks.
 2. Write `templates/<type>.html.twig` that renders named fields (e.g. `page.header.hero.heading`, `page.header.features`) and falls back to `partials/sections.html.twig` for anything else.

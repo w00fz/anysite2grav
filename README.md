@@ -13,10 +13,10 @@ Give it a URL and it will:
 3. **Discover every route.** It reads robots.txt and the sitemaps, then crawls the site, since many builders don't publish a complete sitemap. It also detects soft 404s, redirects, languages and PDFs.
 4. **Audit the site.** It inventories analytics and third-party tags with their IDs, every form (including ones in modals), embeds, inline code, fonts and the palette.
 5. **Ask what matters, then wait.** Theme name, Tailwind or built-in CSS, native multilang or per-language trees, how each form should deliver (save, email, webhook, keep the embed), the CAPTCHA provider (Grav's built-in Cap by default), and whether analytics are ported (production hosts only). Nothing is built until you answer.
-6. **Recreate the content.** One Grav page per URL, with the exact title and meta, OG tags, provenance, structured `sections` (headings, text, lists, columns, images, galleries, card grids, background videos, buttons, embeds, forms, modals) or Markdown for articles. Pages are always Markdown + frontmatter, never copied source HTML. Pages with more than three horizontal sections become **modular pages**, one module per section (hero, cards, gallery, form, shared, section), each with its own Admin form and media. Shorter pages stay single pages. Shared sections are stored once, missing parents are created, source redirects are kept, and media is deduped by hash into page or site media.
-7. **Build a standalone theme** from the source's measured styles, standardized: sections pick a `tone` (light, muted, dark, accent) and `space` step defined once as theme tokens, and the source's own CSS is ported once, deduplicated. The header, dropdown menus, CTAs, language switcher and footer are all editable in Admin, alongside reusable blueprints, preview-host `noindex`, host-gated analytics, a `DESIGN.md`, and an optional Tailwind 4 build. Selected official Quark2 conventions make templates and assets easier to extend while preserving your site's design.
+6. **Recreate the content.** One Grav page per URL, with the exact title and meta, OG tags, provenance, structured `sections` (headings, text, lists, columns, images, galleries, card grids, background videos, buttons, embeds, forms, modals) or Markdown for articles. Pages are always Markdown + frontmatter, never copied source HTML. Blogs, directories and other listings become **Grav collections** with pagination, category filters and search, using official plugins (`pagination`, `simplesearch`, `tntsearch`, `feed`…) where the source has those features. Pages with more than three horizontal sections become **modular pages**, one module per section (hero, cards, gallery, form, shared, section), each with its own Admin form and media. Shorter pages stay single pages. Shared sections are stored once, missing parents are created, source redirects are kept, and media is deduped by hash into page or site media.
+7. **Build a new standalone theme and source-specific content types.** The scaffold is a draft. Finish a representative page with dedicated Twig templates, named blueprint fields, Markdown and working plugins before expanding its design family. Match exact spacing, layout, typography, colors, highlights, borders and responsive/hover/focus states. Start from the source's measured styles. `measure_layout.mjs` reads each source page's real layout (split sections, column ratios, cards per row, card style, dividers, type scale, fonts, header color per page) and writes it as semantic frontmatter and tokens, as initial hints; final component CSS preserves exact source values and responsive rules, and the source's own CSS is ported once, deduplicated. The header, dropdown menus, CTAs, language switcher and footer are all editable in Admin, alongside reusable blueprints, preview-host `noindex`, host-gated analytics, a `DESIGN.md`, and an optional Tailwind 4 build. Selected official Quark2 conventions make templates and assets easier to extend while preserving your site's design.
 8. **Convert forms** into Grav Form pages (XHR submit, Cap) embedded wherever the source showed them.
-9. **Iterate to parity.** It captures source and local screenshots side by side and runs a route-by-route verifier (status, titles, text coverage, media, forms, leftover CDN assets, `lang`/hreflang, noindex, analytics leakage, redirects) until both agree.
+9. **Prove design, behavior and editability separately.** Use `compare_components.mjs` to compare geometry, CSS, pseudo-elements and UI states at desktop/tablet/mobile widths, with full-color screenshots. Missing controls keep the draft incomplete; grayscale scores never establish acceptance. Follow the [fidelity workflow](skills/anysite2grav/references/fidelity.md). It captures source and local screenshots side by side and runs a route-by-route verifier (status, titles, text coverage, media, forms, leftover CDN assets, `lang`/hreflang, noindex, analytics leakage, redirects) until both agree.
 
 ## Install
 
@@ -109,11 +109,13 @@ docs/                      static overview site
 | `audit_site.py` | trackers, forms, embeds, inline code, fonts, palette → `audit.md` |
 | `extract_content.py` | sections/blocks, chrome (menus/footer), shared sections, layout clusters |
 | `import_media.py` | download once, SHA-256 dedupe, assign page/shared/theme/document scope |
-| `build_pages.py` | Grav page tree (modular pages above 3 sections), frontmatter, media placement, languages, redirects |
+| `measure_layout.mjs` | computed layout of every section and block on the source → `layout.json` |
+| `build_pages.py` | Grav page tree (modular pages above 3 sections, collections for listings), frontmatter, media placement, languages, redirects |
 | `scaffold_theme.py` | theme from skeleton + tokens + navigation config, optional Tailwind |
 | `build_forms.py` | forms plan → `/forms/<name>` Grav Form pages + CAPTCHA config |
 | `capture_pages.mjs` | Playwright screenshots (source vs local) and computed design tokens |
-| `verify_parity.py` | route-by-route parity report |
+| `compare_components.mjs` | paired component geometry, exact CSS, pseudo-elements and UI-state comparisons with screenshots |
+| `verify_parity.py` | route-by-route content parity report |
 | `grav_config.php` | merge JSON into Grav YAML / lint frontmatter with Grav's own parser |
 
 ## Validate theme changes
@@ -123,6 +125,8 @@ Use PHP 8.3+ and an installed Grav 2 runtime for the regression suite. It create
 ```bash
 GRAV_TEST_ROOT=/path/to/grav python3 -m unittest discover -s skills/anysite2grav/tests -v
 ```
+
+Browser comparator checks: `GRAV_PLAYWRIGHT_TOOLS=/path/to/migration/.tools node --test skills/anysite2grav/tests/test_component_comparison.mjs`. They use controlled local pages to verify responsive/state matches and detect geometry, color, pseudo-element, missing-item and capture failures.
 
 The checks cover configuration preservation and explicit resets, plain CSS/Tailwind scaffolds, blueprint imports and modular controls, deferred assets, and embedded Form/Cap rendering with cold and warm caches. Project acceptance still includes an Admin edit and browser form submission.
 

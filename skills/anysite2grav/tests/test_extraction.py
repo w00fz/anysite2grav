@@ -200,5 +200,140 @@ class CrawlTests(unittest.TestCase):
         self.assertTrue(result["url"].endswith("/about/"))
 
 
+POST = """<li class="wp-block-post post type-post"><header class="entry-header">
+  <h3 class="wp-block-post-title"><a href="/news/2026/10/{slug}/">{title}</a></h3>
+  <div class="wp-block-post-terms"><a href="/news/category/releases/">Releases</a>, <a href="/news/category/security/">Security</a></div>
+  <div class="wp-block-post-date"><time datetime="2026-10-{day}T10:00:00+00:00">October {day}, 2026</time></div></header>
+  <p>Excerpt for {title}, with enough words to count as a summary.</p></li>"""
+
+
+class ListingTests(unittest.TestCase):
+    def blocks(self, markup):
+        from extract_content import extract_blocks
+        from htmlkit import parse_html
+
+        return extract_blocks(parse_html(markup).find("body"), "https://example.org/news/", {})
+
+    def test_post_list_becomes_listing_with_terms_dates_and_full_text(self):
+        posts = "".join(POST.format(slug=f"post-{day}", title=f"Release {day}", day=day) for day in (10, 11, 12, 13))
+        blocks = self.blocks(f"<html><body><ul class='wp-block-post-template'>{posts}</ul></body></html>")
+        listing = blocks[0]
+        self.assertEqual(listing["type"], "listing")
+        self.assertEqual(len(listing["items"]), 4)
+        item = listing["items"][0]
+        self.assertEqual((item["title"], item["date"][:10]), ("Release 10", "2026-10-10"))
+        self.assertEqual([term["label"] for term in item["terms"]], ["Releases", "Security"], "the entry header must not be mistaken for the site menu")
+        self.assertEqual(listing["taxonomy"], "category")
+        self.assertTrue(any("Excerpt for Release 10" in block.get("text", "") for block in item["blocks"]))
+
+    def test_navigation_and_plain_cards_are_not_listings(self):
+        menu = "<nav><ul>" + "".join(f"<li class='wp-block-navigation-item'><a href='/a{index}/'>Item {index}</a></li>" for index in range(5)) + "</ul></nav>"
+        cards = "<div class='grid'>" + "".join(f"<div class='feature'><h3>Feature {index}</h3><p>Text {index}</p><a href='/f{index}/'>More</a></div>" for index in range(4)) + "</div>"
+        for markup in (menu, cards):
+            types = [block["type"] for block in self.blocks(f"<html><body>{markup}</body></html>")]
+            self.assertNotIn("listing", types, markup[:40])
+
+    def test_slides_in_a_list_keep_their_structure(self):
+        slide = "<ul><li><h1>Showcase</h1><p>The best websites, built with WordPress.</p><img src='/s.png' alt='site'></li></ul>"
+        types = [block["type"] for block in self.blocks(f"<html><body>{slide}</body></html>")]
+        self.assertEqual(types[:3], ["heading", "text", "image"])
+
+
+class LayoutTests(unittest.TestCase):
+    def test_section_split_and_dividers(self):
+        import layoutkit
+
+        style = layoutkit.section_style({
+            "background": "rgb(35, 40, 45)", "padding": [80, 80], "borderTop": None, "borderBottom": {"width": 1, "color": "rgb(0,0,0)"},
+            "align": "start", "grid": {"tracks": [358, 1002], "headingColumn": 0, "divider": True},
+        })
+        self.assertEqual((style["tone"], style["space"], style["divider"]), ("dark", "l", "bottom"))
+        self.assertEqual((style["layout"], style["ratio"], style["split_divider"]), ("split", [1.0, 2.75], True))
+
+    def test_item_grid_style(self):
+        import layoutkit
+
+        style = layoutkit.block_style({
+            "perRow": 5, "rowWidths": [288] * 5, "gap": [0, 0], "width": 1440, "viewport": 1440,
+            "child": {"background": None, "border": None, "shadow": False, "dividers": False},
+            "image": {"ratio": 1.0, "filter": "grayscale(1)"},
+        }, "collection")
+        self.assertEqual(style, {"per_row": 5, "card": "plain", "image_ratio": "1/1", "image_filter": "grayscale", "bleed": True, "gap": "none"})
+
+    def test_type_scale_covers_rare_large_sizes(self):
+        import layoutkit
+
+        headings = [{"size": size, "family": "Inter", "text": "x"} for size in [160] + [90] + [50] * 20 + [36] * 10 + [24] * 8 + [18] * 6 + [14] * 4]
+        scale = layoutkit.type_scale({"/": {"sections": {"a": {"headings": headings, "paragraphs": []}}, "blocks": {}}})
+        self.assertEqual(scale[0], ("display", 160))
+        self.assertEqual(layoutkit.size_step(90, scale) in ("xl", "display"), True)
+        self.assertEqual(layoutkit.size_step(50, scale), next(name for name, size in scale if size == 50))
+
+    def test_header_variants_group_by_tone(self):
+        import layoutkit
+
+        routes = {
+            "/": {"chrome": {"header": {"background": "rgb(255, 255, 255)", "color": "rgb(0, 0, 0)"}}},
+            "/news": {"chrome": {"header": {"background": "rgb(35, 40, 45)", "color": "rgb(255, 255, 255)"}}},
+            "/showcase": {"chrome": {"header": {"background": "rgb(30, 30, 30)", "color": "rgb(255, 255, 255)"}}},
+        }
+        variants = layoutkit.header_variants(routes)
+        self.assertEqual(variants["routes"], {"/news": "alt", "/showcase": "alt"})
+
+    def test_root_variables_are_scoped_and_never_override_tokens(self):
+        from scaffold_theme import port_source_css
+
+        with tempfile.TemporaryDirectory() as directory:
+            migration, theme = Path(directory) / "migration", Path(directory) / "theme"
+            (migration / "css").mkdir(parents=True)
+            theme.mkdir()
+            (migration / "css" / "0.css").write_text(":root { --font-body: 16px; --brand: var(--brand-base); --brand-base: #3858e9; --unused: 1px; } .hero { color: var(--brand); font-size: var(--font-body); }")
+            (migration / "css" / "index.json").write_text(json.dumps({"0.css": "https://example.org/a.css"}))
+            css, _ = port_source_css(migration, theme, {"hero"}, reserved={"font-body"})
+        self.assertIn("--brand: var(--brand-base)", css)
+        self.assertIn("--brand-base: #3858e9", css)
+        self.assertNotIn("--unused", css)
+        self.assertNotIn("--font-body: 16px", css)
+
+
+class ControlsAndChromeTests(unittest.TestCase):
+    def blocks(self, markup):
+        from extract_content import extract_blocks
+        from htmlkit import parse_html
+
+        return extract_blocks(parse_html(markup).find("body"), "https://example.org/themes/", {})
+
+    def test_pagination_is_left_to_the_collection_and_tabs_keep_the_active_item(self):
+        markup = """<html><body><ul><li class="current-menu-item"><a href="/themes/">Popular</a></li><li><a href="/themes/browse/new/">Latest</a></li></ul>
+          <nav class="wp-block-query-pagination"><a href="/themes/page/2/">2</a><a href="/themes/page/49/">49</a></nav></body></html>"""
+        blocks = self.blocks(markup)
+        self.assertEqual([block["type"] for block in blocks], ["list"])
+        self.assertEqual(blocks[0]["active"], 0)
+
+    def test_control_targets(self):
+        markup = """<html><body><button aria-controls="filters">Layout 0</button><div class="dropdown" id="filters"><p>x</p></div>
+          <button aria-controls="pane-2">Tab two</button><div id="pane-2"><p>Pane</p></div><button aria-controls="gone">Ghost</button></body></html>"""
+        targets = {block["label"]: block.get("_target") for block in self.blocks(markup) if block["type"] == "button"}
+        self.assertEqual(targets, {"Layout 0": "dialog", "Tab two": "content", "Ghost": "missing"})
+
+    def test_ported_rules_keep_visual_properties_only(self):
+        from scaffold_theme import visual_declarations
+
+        kept = visual_declarations("display: contents; background-color: #23282d !important; color: #fff; grid-template-columns: 1fr 1fr; margin: 0 auto; border-bottom: 1px solid #ccc")
+        self.assertEqual(kept, "background-color:#23282d;color:#fff;border-bottom:1px solid #ccc")
+
+    def test_header_and_list_tokens(self):
+        import layoutkit
+
+        routes = {"/": {"chrome": {"header": {"background": "rgb(255,255,255)", "color": "rgb(0,0,0)", "height": 70,
+            "logo": {"left": 20, "right": 50, "height": 30}, "nav": {"left": 80, "size": 14, "weight": "400", "paddingX": 10, "gap": 20},
+            "cta": {"size": 14, "weight": "700", "padding": [10, 19], "radius": "2px", "right": 20}}},
+            "input": {"background": "rgb(246, 246, 246)", "border": None, "radius": "2px", "height": 40, "size": 14}}}
+        tokens = layoutkit.header_tokens(routes)
+        self.assertEqual((tokens["header-width"], tokens["header-gutter"], tokens["nav-start"]), ("100%", "20px", "0"))
+        self.assertEqual((tokens["input-bg"], tokens["input-border"], tokens["button-padding"]), ("#f6f6f6", "0", "10px 19px"))
+        self.assertEqual(layoutkit.block_style({"list": True, "inline": True, "activeBackground": "rgb(30,30,30)", "size": 14}, "list"), {"style": "tabs", "size": "small"})
+
+
 if __name__ == "__main__":
     unittest.main()

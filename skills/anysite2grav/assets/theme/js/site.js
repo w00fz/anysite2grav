@@ -36,6 +36,13 @@
       navToggle.setAttribute('aria-expanded', String(open));
     }
 
+    // Header search: the icon opens (focuses) its field.
+    const searchToggle = event.target.closest('[data-search-toggle]');
+    if (searchToggle) {
+      const field = searchToggle.closest('form')?.querySelector('input[type=search]');
+      if (field) field.focus();
+    }
+
     const opener = event.target.closest('[data-modal-open]');
     if (opener) {
       event.preventDefault();

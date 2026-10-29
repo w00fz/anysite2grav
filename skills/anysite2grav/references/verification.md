@@ -5,7 +5,10 @@
 - [ ] Every source route returns 200 locally; no unexpected extra public routes
 - [ ] `verify_parity.py --expect-noindex` passes: exact titles, ≥ 95% source text per page, forms rendered, no assets loading from the old CDN, `lang`/hreflang correct, noindex present, no analytics locally
 - [ ] Source redirects replay correctly
-- [ ] Side-by-side screenshots reviewed for every layout cluster at 1440px and 390px; differences fixed or recorded in `DESIGN.md`
+- [ ] Full-color fold/full-page screenshots reviewed for every route/design variant at desktop/tablet/mobile and source breakpoints; unapproved visible discrepancies fixed
+- [ ] `compare_components.mjs` plans cover section internals, repeated items, chrome and applicable hover/focus/open/selected/error states; missing elements and failed captures fixed
+- [ ] Every draft omission in `unresolved-controls.json` reconciled to implemented behavior or an explicit user-approved exclusion; filters/search/pagination tested with real data and empty states
+- [ ] Dedicated page/module templates have matching blueprints and named fields; Markdown bodies, media and repeated items edit and save correctly in Admin/API
 - [ ] Menus, dropdowns, language switcher, modals and mobile nav work with mouse, keyboard and touch widths
 - [ ] Each form submitted in a browser: inline success, record saved or email captured, validation errors shown
 - [ ] `php <skill>/scripts/grav_config.php grav lint user` clean; `grav/logs/grav.log` has no new errors
@@ -27,7 +30,7 @@
 | Fewer images than source | gallery/slider images in JS, CSS backgrounds | Same as above; add the images to the right block |
 | Indexable locally | host missing from `noindex_hosts` | Add it and clear the cache |
 
-Coverage is a floor, not the goal: a page can have all its text and still look wrong. The screenshots decide.
+Coverage is a floor: a page can have all its text and still look wrong. Require rendered design, working features and CMS editability separately. The screenshot helper's grayscale score is not a fidelity percentage and has no passing threshold. Component measurements cover only the selectors/states in their plan; review the actual full-color result and exercise the controls. Details: [fidelity.md](fidelity.md).
 
 ## Visual review
 

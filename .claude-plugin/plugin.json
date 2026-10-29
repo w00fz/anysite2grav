@@ -1,7 +1,7 @@
 {
   "name": "anysite2grav",
   "description": "Convert any live website into a local Grav 2 site: same routes and content, blueprints, forms, analytics, a matching theme, and Admin2 + API + MCP wired for agents.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "Djamil Legato"
   },

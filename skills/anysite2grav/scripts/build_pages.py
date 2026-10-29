@@ -3,7 +3,7 @@
 
 Usage:
   build_pages.py migration --grav grav [--languages auto|native|trees] [--template-map map.json]
-                 [--modular auto|off] [--modular-threshold 3] [--keep-sample-pages] [--dry-run]
+                 [--modular auto|off] [--modular-threshold 3] [--keep-sample-pages] [--dry-run] [--allow-incomplete]
 
 What it does (idempotent; rerun after improving extraction or the template map):
   * one Grav page folder per source route, preserving every URL; numeric folder prefixes follow
@@ -38,6 +38,7 @@ from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gravkit import merge_config, write_page  # noqa: E402
+import layoutkit  # noqa: E402
 from htmlkit import read_json, route_of, site_key, slugify, write_json  # noqa: E402
 
 LANG_PREFIX = re.compile(r"^/([a-z]{2}(?:-[a-z]{2,4})?)(?=/|$)", re.I)
@@ -66,6 +67,20 @@ class Builder:
         self.mode = self.resolve_language_mode()
         self.copied: dict[str, str] = {}
         self.stats = Counter()
+        self.unresolved_controls = []
+        self.current_source_route = None
+        self.current: tuple | None = None  # (folder, logical route, lang) of the page being written
+        self.current_heading: str | None = None
+        self.collection_names_used: set[str] = set()
+        self.item_meta: dict[str, dict] = {}  # imported item pages → listing date/terms/image
+        # Measured source layout (measure_layout.mjs): section/block styles, type scale, fonts.
+        self.layout = layoutkit.load(self.migration)
+        self.scale = layoutkit.type_scale(self.layout)
+        self.roles = layoutkit.font_roles(self.layout)
+        self.header_variants = layoutkit.header_variants(self.layout)
+        self.current_layout: dict = {}
+        self.current_text: tuple[dict, dict] = ({}, {})
+        self.current_modals: set[str] = set()
 
     # --- languages ------------------------------------------------------------
     def counterpart(self, record: dict) -> str | None:
@@ -193,8 +208,29 @@ class Builder:
 
     def rewrite_blocks(self, blocks: list[dict], page_folder: Path | None) -> list[dict]:
         output = []
+        headings, paragraphs = self.current_text
         for block in blocks:
             block = dict(block)
+            if block.get("type") == "heading" and headings:
+                block.update(headings.get(layoutkit.plain(block.get("text"))[:60], {}))
+            if block.get("type") == "text" and paragraphs:
+                block.update(paragraphs.get(layoutkit.plain(block.get("text"))[:60], {}))
+            if block.get("_path") and block.get("type") in ("columns", "cards", "list"):
+                block.update(layoutkit.block_style(self.current_layout.get("blocks", {}).get(block["_path"]), block["type"]))
+            if block.get("type") == "button" and not block.get("href") and not block.get("modal"):
+                target = (block.get("action") or "").lstrip("#")
+                if target and target in self.current_modals:
+                    block["modal"] = target
+                    block.pop("action", None)
+                else:
+                    self.unresolved_controls.append({
+                        "route": self.current_source_route,
+                        "label": block.get("label"), "action": block.get("action"),
+                        "target": block.get("_target"), "source_path": block.get("_path"),
+                    })
+                    self.stats["dead_controls"] += 1
+                    if block.get("_target") in ("dialog", "missing"):
+                        continue
             if block.get("type") == "image" and block.get("src"):
                 block["src"] = self.media_ref(block["src"], page_folder)
             if block.get("sources"):
@@ -203,7 +239,7 @@ class Builder:
                 block["poster"] = self.media_ref(block["poster"], page_folder)
             if block.get("text"):
                 block["text"] = self.rewrite_markdown(block["text"], page_folder)
-            if block.get("items"):
+            if block.get("items") and block.get("type") == "list":
                 block["items"] = [self.rewrite_markdown(item, page_folder) for item in block["items"]]
             if block.get("href"):
                 block["href"] = self.local_link(block["href"])
@@ -214,12 +250,122 @@ class Builder:
                 block["images"] = [{**image, "src": self.media_ref(image["src"], page_folder), **({"href": self.local_link(image["href"])} if image.get("href") else {})} for image in block["images"]]
             if block.get("type") == "cards":
                 block["cards"] = [{**card, "blocks": self.rewrite_blocks(card["blocks"], page_folder), **({"href": self.local_link(card["href"])} if card.get("href") else {})} for card in block["cards"]]
+                block["cards"] = [card for card in block["cards"] if card["blocks"]]
+                if not block["cards"]:
+                    continue
             if block.get("type") == "columns":
                 block["columns"] = [{**column, "blocks": self.rewrite_blocks(column["blocks"], page_folder)} for column in block["columns"]]
+            if block.get("type") == "listing":
+                block = self.listing_block(block, page_folder)
             if block.get("type") == "form":
                 block["form"] = self.form_names.get(block.pop("ref"), block.get("ref"))
-            output.append({key: value for key, value in block.items() if value not in (None, "", [])})
+            # `_path` and other underscore keys are extraction bookkeeping (layout capture), never frontmatter.
+            output.append({key: value for key, value in block.items() if value not in (None, "", []) and not key.startswith("_")})
         return output
+
+    # --- collections ----------------------------------------------------------------
+    def listing_block(self, block: dict, page_folder: Path | None) -> dict:
+        """A listing becomes a Grav collection block. Its items are real pages, so pagination,
+        taxonomy filters, ordering and Admin editing come from Grav instead of a frozen card list."""
+        if self.args.collections == "off" or self.current is None:
+            items = []
+            for item in block["items"]:
+                entry = {key: item.get(key) for key in ("title", "date", "excerpt")}
+                entry["href"] = self.local_link(item["href"])
+                entry["image"] = self.media_ref(item["image"], page_folder) if item.get("image") else None
+                entry["terms"] = [term["label"] for term in item.get("terms", [])] or None
+                items.append({key: value for key, value in entry.items() if value})
+            return {"type": "listing", "style": block.get("style"), "items": items}
+        folder, logical, lang = self.current
+        measured = self.current_layout.get("blocks", {}).get(block.get("_path") or "")
+        routes = [route_of(item["href"]) for item in block["items"]]
+        built = [route for route in routes if route in self.records]
+        collection = {
+            "type": "collection",
+            "style": block.get("style") or "list",
+            "order": {"by": "default", "dir": "asc"},
+            "limit": (block.get("pagination") or {}).get("per_page") or len(block["items"]),
+            "pagination": True if block.get("pagination") else None,
+            "taxonomy": block.get("taxonomy"),
+            "search": block.get("search") or None,
+            # Only the collection that owns the URL filters reacts to /category:x, so other
+            # collections and the modules of a modular page are never filtered away.
+            "url_taxonomy_filters": True if block.get("taxonomy") else None,
+            **layoutkit.block_style(measured, "collection"),
+        }
+        if measured and measured.get("title"):
+            collection["title_size"] = layoutkit.size_step(measured["title"]["size"], self.scale)
+            if str(measured["title"].get("weight")) not in ("400", "normal", ""):
+                collection["title_weight"] = str(measured["title"]["weight"])
+            role = layoutkit.family_role(measured["title"]["family"], self.roles)
+            if role and role != "heading":
+                collection["title_font"] = role
+        if routes and len(built) >= 0.8 * len(routes):
+            # The items were imported as pages: list them where they live, newest first.
+            common = built[0].strip("/").split("/")[:-1]
+            for route in built[1:]:
+                parts = route.strip("/").split("/")[:-1]
+                common = [part for part, other in zip(common, parts) if part == other]
+            for item in block["items"]:
+                self.item_meta[route_of(item["href"])] = item
+            collection.update({"from": "/" + "/".join(common), "descendants": True, "order": {"by": "date", "dir": "desc"}})
+        else:
+            name = self.collection_name()
+            collection["from"] = self.grav_route(folder / name)
+            self.write_collection_items(folder / name, name, block, lang)
+        self.stats["collections"] += 1
+        return {key: value for key, value in collection.items() if value is not None}
+
+    def grav_route(self, folder: Path) -> str:
+        """The route Grav gives a page folder: path below pages/ without NN. prefixes (home is /home)."""
+        parts = [re.sub(r"^\d+\.", "", part) for part in folder.relative_to(self.pages_dir).parts]
+        return "/" + "/".join(parts)
+
+    def collection_name(self) -> str:
+        base = slugify(plain_text(self.current_heading or ""), "")[:32].strip("-") or "items"
+        name, counter = base, 2
+        while name in self.collection_names_used:
+            name, counter = f"{base}-{counter}", counter + 1
+        self.collection_names_used.add(name)
+        return name
+
+    def write_collection_items(self, items_folder: Path, name: str, block: dict, lang: str):
+        """Item records for a listing whose items weren't imported (a scoped copy, a CMS feed):
+        title, date, taxonomy, image, summary and the original link, plus the card's own text."""
+        keep = set()
+        for position, item in enumerate(block["items"], 1):
+            slug = slugify(item["title"], f"item-{position}")[:48].strip("-") or f"item-{position}"
+            item_folder = items_folder / f"{position:02d}.{slug}"
+            keep.add(item_folder.name)
+            image = self.media_ref(item["image"], item_folder) if item.get("image") else None
+            header = {
+                "title": item["title"],
+                "date": item.get("date"),
+                "taxonomy": {"category": [term["label"] for term in item.get("terms", [])]} if item.get("terms") else None,
+                "image": image,
+                "summary": item.get("excerpt"),
+                # Items link where the source card linked; the record itself isn't a public page.
+                "link": self.local_link(item["href"]),
+                "routable": False,
+                "source": {"url": item["href"]},
+            }
+            blocks = [
+                entry for entry in self.rewrite_blocks(item.get("blocks", []), item_folder)
+                if not (entry.get("type") == "heading" and plain_text(entry.get("text")) == item["title"])
+                and not (entry.get("type") == "image" and image and entry.get("src") == image)
+            ]
+            body = markdown_from_sections([{"type": "section", "blocks": blocks}])
+            if not self.args.dry_run:
+                write_page(item_folder / self.file_name("item", lang), {key: value for key, value in header.items() if value not in (None, [], {})}, body)
+            self.stats["collection_items"] += 1
+        if not self.args.dry_run:
+            write_page(items_folder / self.file_name("default", lang), {"title": plain_text(self.current_heading or name.replace("-", " ").capitalize()), "routable": False, "visible": False})
+            for stale in items_folder.iterdir():
+                if stale.is_dir() and stale.name not in keep:
+                    for file in stale.glob(f"*.{lang}.md" if self.mode == "native" else "*.md"):
+                        file.unlink()
+                    if not any(stale.glob("*.md")):
+                        shutil.rmtree(stale)
 
     # --- modular pages ------------------------------------------------------------
     def is_hidden(self, section: dict) -> bool:
@@ -279,16 +425,31 @@ class Builder:
         return next((index for index, section in enumerate(visible) if section.get("role") != "subnav"), 0)
 
     def section_entry(self, section: dict, folder: Path) -> dict:
+        self.current_heading = first_heading(section.get("blocks", []))
         if "shared" in section:
             return {"type": "shared", "shared": self.shared_names.get(section["shared"], section["shared"])}
         if section.get("body"):
             return {key: value for key, value in {"type": "body", "id": section.get("id"), "classes": section.get("classes")}.items() if value}
+        metrics = self.current_layout.get("sections", {}).get(section.get("_path") or "")
+        measured = layoutkit.section_style(metrics)
+        measured.pop("background_color", None)
+        if any(block.get("type") == "columns" for block in section.get("blocks", [])):
+            # The split was measured on the columns block itself; the section stays stacked.
+            for key in ("layout", "ratio", "split_divider"):
+                measured.pop(key, None)
+        self.current_text = layoutkit.text_styles(metrics, self.scale, self.roles)
         entry = {
             "type": "section",
             "id": section.get("id"),
             "classes": section.get("classes"),
-            "tone": section.get("tone"),
-            "space": section.get("space"),
+            # Measured values (computed styles on the source) beat what the CSS alone suggested.
+            "tone": measured.get("tone", section.get("tone")),
+            "space": measured.get("space", section.get("space")),
+            "divider": measured.get("divider"),
+            "align": measured.get("align"),
+            "layout": measured.get("layout"),
+            "ratio": measured.get("ratio"),
+            "split_divider": measured.get("split_divider"),
             "role": section.get("role"),
             "modal": section.get("modal") or None,
             "background": self.media_ref(section["backgrounds"][0], folder) if section.get("backgrounds") else None,
@@ -299,6 +460,7 @@ class Builder:
             # Stable dialog id (modal-<id>) so buttons can target it across rebuilds.
             heading = next((block["text"] for block in section["blocks"] if block["type"] == "heading"), None)
             entry["id"] = slugify(re.sub(r"[*\[\]()]", "", heading or "popup"), "popup")[:40]
+        self.current_text = ({}, {})
         return {key: value for key, value in entry.items() if value not in (None, [], "")}
 
     def write_modules(self, folder: Path, plan: list[tuple[str, str]] | None, record: dict, lang: str) -> list[dict]:
@@ -322,9 +484,14 @@ class Builder:
                     header["shared"] = entry["shared"]
                 else:
                     header.update({key: entry.get(field) for key, field in (
-                        ("anchor", "id"), ("tone", "tone"), ("space", "space"), ("role", "role"), ("classes", "classes"),
+                        ("anchor", "id"), ("tone", "tone"), ("space", "space"), ("divider", "divider"), ("align", "align"),
+                        ("layout", "layout"), ("ratio", "ratio"), ("split_divider", "split_divider"), ("role", "role"), ("classes", "classes"),
                         ("background", "background"), ("background_video", "background_video"), ("blocks", "blocks"),
                     )})
+                if any(block.get("type") == "collection" for block in iter_blocks(entry.get("blocks", []))):
+                    # A module's rendered HTML is cached with its content; collections depend on the URL
+                    # (page:2, category:x, ?q=), so this module renders on every request.
+                    header["cache_enable"] = False
                 target = module_folder / self.file_name(kind, lang)
                 if not self.args.dry_run:
                     for stale in module_folder.glob(f"*.{lang}.md" if self.mode == "native" else "*.md"):
@@ -395,9 +562,20 @@ class Builder:
                 if entry.get("url"):
                     menu_labels.setdefault(route_of(entry["url"]), entry["label"])
 
+        # Imported item pages (posts listed on /news…) take their date, category and image from the
+        # listing, so collections can sort and filter them.
+        for record in self.records.values():
+            for section in record["sections"]:
+                for block in iter_blocks(section.get("blocks", [])):
+                    if block.get("type") == "listing":
+                        for item in block["items"]:
+                            if route_of(item["href"]) in self.records:
+                                self.item_meta.setdefault(route_of(item["href"]), item)
+
         page_map = {}
         folders_with_pages = set()
         for route, record in sorted(self.records.items()):
+            self.current_source_route = route
             logical = self.logical_route(record)
             folder = self.folder_for(logical)
             lang = record["lang"] if self.mode == "native" else self.default_lang
@@ -406,6 +584,11 @@ class Builder:
             plan = self.module_plan(anchor_record, template)
             if plan:
                 template = "modular"
+            self.current = (folder, logical, lang)
+            self.collection_names_used = set()
+            self.current_modals = {section.get("id") for section in record["sections"] if section.get("modal") and section.get("id")}
+            # Translations reuse their default-language counterpart's measurements.
+            self.current_layout = self.layout.get(route) or self.layout.get(logical) or {}
             # Modular pages keep only their popups here; every visible section becomes a module.
             sections = [self.section_entry(section, folder) for section in record["sections"] if not plan or self.is_hidden(section)]
             visible_heading = next((block["text"] for section in record["sections"] if "blocks" in section and not section.get("modal") for block in section["blocks"] if block["type"] == "heading" and block.get("level") == 1), None)
@@ -431,6 +614,15 @@ class Builder:
             }
             if self.mode == "trees" and record["lang"] != self.default_lang:
                 header["language"] = record["lang"]
+            if self.header_variants.get("routes", {}).get(route) or self.header_variants.get("routes", {}).get(logical):
+                # This page's source header uses the alternate colors (e.g. dark on inner pages).
+                header["header_variant"] = "alt"
+            listed = self.item_meta.get(route)
+            if listed:
+                header["date"] = listed.get("date")
+                header["taxonomy"] = {"category": [term["label"] for term in listed.get("terms", [])]} if listed.get("terms") else None
+                header["image"] = self.media_ref(listed["image"], folder) if listed.get("image") else None
+                header["summary"] = listed.get("excerpt")
             body = ""
             if template == "default" or record["kind"] == "article":
                 body = self.rewrite_markdown(record.get("body_markdown") or markdown_from_sections(sections), folder)
@@ -439,7 +631,8 @@ class Builder:
             # Articles keep their hero/related/CTA sections; a {type: body} block marks where the Markdown goes.
             header["sections"] = sections
             if plan:
-                header["content"] = {"items": "@self.modular", "order": {"by": "default", "dir": "asc"}}
+                # url_taxonomy_filters: false keeps /page/category:x from filtering the modules away.
+                header["content"] = {"items": "@self.modular", "order": {"by": "default", "dir": "asc"}, "url_taxonomy_filters": False}
             if any(block.get("type") == "body" for section in sections for block in section.get("blocks", [])) or any(section.get("type") == "body" for section in sections):
                 header["body_slot"] = True
             header = {key: value for key, value in header.items() if value not in (None, [], {})}
@@ -470,6 +663,7 @@ class Builder:
 
         # Shared sections as non-routable pages under /shared.
         for shared_id, section in self.shared.items():
+            self.current_source_route = section.get("routes", [])
             name = self.shared_names[shared_id]
             folder = self.pages_dir / "shared" / name
             lang = section["lang"] if self.mode == "native" else self.default_lang
@@ -484,7 +678,10 @@ class Builder:
         if not self.args.dry_run:
             self.write_config()
         write_json(self.migration / "page-map.json", {"mode": self.mode, "default_lang": self.default_lang, "languages": self.languages, "pages": page_map, "shared": self.shared_names, "forms": self.form_names})
-        print(f"{self.stats['pages']} page files ({self.mode} languages: {self.languages or [self.default_lang]}), {self.stats['modular']} modular ({self.stats['modules']} module files), {self.stats['parents']} non-routable parents, {len(self.shared)} shared sections, {self.stats['media_unresolved']} unresolved media refs" + (" [dry run]" if self.args.dry_run else ""))
+        write_json(self.migration / "unresolved-controls.json", self.unresolved_controls)
+        if self.unresolved_controls:
+            print(f"DRAFT INCOMPLETE: {len(self.unresolved_controls)} controls need implementation; see {self.migration / 'unresolved-controls.json'}")
+        print(f"{self.stats['pages']} page files ({self.mode} languages: {self.languages or [self.default_lang]}), {self.stats['modular']} modular ({self.stats['modules']} module files), {self.stats['parents']} non-routable parents, {len(self.shared)} shared sections, {self.stats['collections']} collections ({self.stats['collection_items']} item records), {self.stats['dead_controls']} unresolved controls in draft, {self.stats['media_unresolved']} unresolved media refs" + (" [dry run]" if self.args.dry_run else ""))
 
     def write_config(self):
         redirects = {}
@@ -515,6 +712,14 @@ class Builder:
         if not hasattr(self, "_shared_names"):
             self._shared_names = self.shared_ids()
         return self._shared_names
+
+
+def iter_blocks(blocks: list[dict]):
+    """Every block, including those nested in columns and cards."""
+    for block in blocks:
+        yield block
+        for inner in block.get("columns", []) + block.get("cards", []):
+            yield from iter_blocks(inner.get("blocks", []))
 
 
 def first_heading(blocks: list[dict]) -> str | None:
@@ -549,11 +754,14 @@ def main() -> int:
     parser.add_argument("--template-map", help="JSON file mapping cluster ids or ^route regexes to template names")
     parser.add_argument("--modular", choices=["auto", "off"], default="auto", help="auto: composed pages with more than --modular-threshold visible sections become modular pages")
     parser.add_argument("--modular-threshold", type=int, default=3, help="visible sections a single page may hold before it becomes modular (default 3)")
+    parser.add_argument("--collections", choices=["auto", "off"], default="auto", help="auto: listings (posts, directories) become Grav collections of item pages")
     parser.add_argument("--keep-sample-pages", action="store_true", help="keep Grav's sample Home/Typography pages")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--allow-incomplete", action="store_true", help="allow a draft import with unresolved controls; omissions still need implementation")
     args = parser.parse_args()
-    Builder(args).run()
-    return 0
+    builder = Builder(args)
+    builder.run()
+    return 1 if builder.unresolved_controls and not args.allow_incomplete else 0
 
 
 if __name__ == "__main__":

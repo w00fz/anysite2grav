@@ -40,6 +40,26 @@ def css_blocks(css: str):
         position = cursor
 
 
+def declarations(body: str):
+    """Split a declaration block on top-level ';' (not inside url(), quotes or parentheses)."""
+    parts, start, depth, quote = [], 0, 0, ""
+    for index, character in enumerate(body):
+        if quote:
+            if character == quote and body[index - 1] != "\\":
+                quote = ""
+        elif character in "\"'":
+            quote = character
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth = max(0, depth - 1)
+        elif character == ";" and not depth:
+            parts.append(body[start:index])
+            start = index + 1
+    parts.append(body[start:])
+    return parts
+
+
 def parse_color(value: str):
     """Return ((r, g, b), alpha) or (None, 0) for hex, rgb()/rgba() (comma or space syntax) and a few names."""
     value = value.strip().lower().replace("!important", "").strip()
@@ -137,7 +157,7 @@ class SourceStyles:
                 continue
             if prelude.startswith("@"):
                 continue
-            for declaration in body.split(";"):
+            for declaration in declarations(body):
                 name, _, value = declaration.partition(":")
                 name = name.strip()
                 if name.startswith("--") and value.strip():

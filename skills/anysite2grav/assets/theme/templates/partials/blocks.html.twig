@@ -3,15 +3,15 @@
   {% set type = block.type %}
   {% if type == 'heading' %}
     {% set level = min(max(block.level|default(2), 1), 6) %}
-    <h{{ level }} class="block-heading {% for class in block.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}">{{ block.text|markdown(false)|raw }}</h{{ level }}>
+    <h{{ level }} class="block-heading {{ block.size ? 'text-' ~ block.size }} {{ block.font ? 'font-' ~ block.font }} {{ block.transform == 'uppercase' ? 'is-uppercase' }} {% for class in block.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}">{{ block.text|markdown(false)|raw }}</h{{ level }}>
   {% elseif type == 'text' %}
-    <p class="block-text {% for class in block.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}">{{ block.text|markdown(false)|raw }}</p>
+    <p class="block-text {{ block.size ? 'text-' ~ block.size }} {% for class in block.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}">{{ block.text|markdown(false)|raw }}</p>
   {% elseif type == 'quote' %}
     <blockquote class="block-quote">{{ block.text|markdown|raw }}</blockquote>
   {% elseif type == 'list' %}
     {% set tag = block.ordered ? 'ol' : 'ul' %}
     {% if block.title %}<div class="block-list-group"><p class="block-list-title">{{ block.title|markdown(false)|raw }}</p>{% endif %}
-    <{{ tag }} class="block-list">{% for item in block.items %}<li>{{ item|markdown(false)|raw }}</li>{% endfor %}</{{ tag }}>
+    <{{ tag }} class="block-list {{ block.style ? 'block-list--' ~ block.style }} {{ block.size == 'small' ? 'block-list--small' }}">{% for item in block.items %}<li{% if block.active is not null and loop.index0 == block.active %} aria-current="page"{% endif %}>{{ item|markdown(false)|raw }}</li>{% endfor %}</{{ tag }}>
     {% if block.title %}</div>{% endif %}
   {% elseif type == 'image' %}
     {% set image = theme_media(block.src, page) %}
@@ -42,7 +42,8 @@
       <button type="button" class="btn btn--ghost"{% if block.action %} data-action="{{ block.action }}"{% endif %}>{{ block.label }}</button>
     {% endif %}
   {% elseif type == 'cards' %}
-    <div class="cards cards--{{ block.cards|length }} {% for class in block.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}">
+    {% import 'partials/item-layout.html.twig' as grid %}
+    <div class="cards cards--{{ block.cards|length }} {{ grid.classes(block) }} {% for class in block.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}" style="{{ grid.style(block) }}">
       {% for item in block.cards %}
         {% set tag = item.href ? 'a' : 'article' %}
         <{{ tag }} class="card {% for class in item.classes ?? [] %}src-{{ class|e('html_attr') }} {% endfor %}"{% if item.href %} href="{{ item.href }}"{% endif %}>
@@ -50,8 +51,25 @@
         </{{ tag }}>
       {% endfor %}
     </div>
+  {% elseif type == 'collection' %}
+    {% include 'partials/collection.html.twig' with {block: block, page: page} %}
+  {% elseif type == 'listing' %}
+    {# Static listing (build_pages.py --collections off): same markup as a collection, no queries. #}
+    <div class="collection collection--{{ block.style ?: 'list' }}"><ul class="collection__items" role="list">
+      {% for item in block.items %}
+        {% set image = theme_media(item.image, page) %}
+        <li class="collection__item">
+          {% if image and block.style != 'list' %}<a class="collection__media" href="{{ item.href }}" tabindex="-1" aria-hidden="true"><img src="{{ image.url }}" alt="" loading="lazy"></a>{% endif %}
+          <h3 class="collection__title"><a href="{{ item.href }}">{{ item.title }}</a></h3>
+          {% if item.terms or item.date %}<p class="collection__meta">{{ item.terms|default([])|join(', ') }}{% if item.terms and item.date %} · {% endif %}{{ item.date ? item.date|date(config.theme.date_format ?: 'F j, Y') }}</p>{% endif %}
+          {% if item.excerpt and block.style != 'list' %}<p class="collection__summary">{{ item.excerpt }}</p>{% endif %}
+        </li>
+      {% endfor %}
+    </ul></div>
+  {% elseif type == 'code' %}
+    <pre class="block-code"><code{% if block.language %} class="language-{{ block.language|e('html_attr') }}"{% endif %}>{{ block.code }}</code></pre>
   {% elseif type == 'columns' %}
-    <div class="columns columns--{{ block.columns|length }}">
+    <div class="columns columns--{{ block.columns|length }} {{ block.divider ? 'columns--divided' }} {{ block.valign ? 'valign-' ~ block.valign }}"{% if block.ratio %} style="--columns-template: {{ block.ratio|map(part => part ~ 'fr')|join(' ') }}"{% endif %}>
       {% for column in block.columns %}
         <div class="column">{% include 'partials/blocks.html.twig' with {blocks: column.blocks, page: page} %}</div>
       {% endfor %}

@@ -33,7 +33,8 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from csskit import GENERATED_CLASS, TONES, css_blocks, luminance, parse_color, to_hex  # noqa: E402
+import layoutkit  # noqa: E402
+from csskit import GENERATED_CLASS, TONES, css_blocks, declarations, luminance, parse_color, to_hex  # noqa: E402
 from gravkit import get_config, merge_config, yaml_dump  # noqa: E402
 from htmlkit import read_json, route_of, site_key, slugify, write_json  # noqa: E402
 
@@ -178,21 +179,62 @@ def font_faces(migration: Path, theme: Path, mode: str) -> tuple[str, list[str]]
 SIMPLE_CLASS_SELECTOR = re.compile(r"^((?:\.[A-Za-z_][\w-]*)+)((?::{1,2}[\w-]+(?:\([^)]*\))?)*)$")
 
 
-def port_source_css(migration: Path, theme: Path, classes: set[str]) -> tuple[str, int]:
+# Hooks land on the theme's own markup, which is structured differently from the source, so only
+# visual declarations carry over. Layout (display, position, grid, flex, sizing, margins) comes from
+# measure_layout.mjs; a source `display: contents` once erased a whole section's background.
+LAYOUT_PROPERTY = re.compile(
+    r"^(display|position|top|right|bottom|left|inset.*|float|clear|z-index|order|grid.*|flex.*|align-.*|justify-.*|place-.*|gap|row-gap|column-gap|"
+    r"width|min-width|max-width|height|min-height|max-height|margin.*|overflow.*|contain|content-visibility|columns|column-.*|transform|translate|scale|rotate|"
+    r"visibility|clip|clip-path|pointer-events|aspect-ratio|container.*|box-sizing)$",
+    re.I,
+)
+
+
+def visual_declarations(body: str) -> str:
+    kept = []
+    for declaration in declarations(body):
+        name, _, value = declaration.partition(":")
+        if name.strip() and value.strip() and (name.strip().startswith("--") or not LAYOUT_PROPERTY.match(name.strip())):
+            # No !important: the page's measured tone and the theme's tokens must be able to win.
+            cleaned_value = re.sub(r"\s*!important", "", value.strip())
+            kept.append(f"{name.strip()}:{cleaned_value}")
+    return ";".join(kept)
+
+
+def inline_styles(migration: Path):
+    """(css, page url) for each distinct inline <style> in the crawled pages (WordPress global
+    styles carry the preset variables the has-* classes use)."""
+    seen = set()
+    routes = read_json(migration / "routes.json") if (migration / "routes.json").exists() else {"pages": []}
+    for page in routes.get("pages", []):
+        path = migration / page.get("html_file", "")
+        if not page.get("html_file") or not path.exists():
+            continue
+        for css in re.findall(r"<style[^>]*>(.*?)</style>", path.read_text(encoding="utf-8", errors="replace"), re.S | re.I):
+            key = hash(css)
+            if css.strip() and key not in seen:
+                seen.add(key)
+                yield css, page["url"]
+
+
+def port_source_css(migration: Path, theme: Path, classes: set[str], reserved: set[str] | None = None) -> tuple[str, int]:
     """Copy source rules whose selectors are made only of section/card classes onto .src-* hooks.
 
     Builders (Webflow especially) put section backgrounds, spacing and colors in class rules, not
     markup, so the crawl alone misses them. url() assets are downloaded into images/source/.
     """
     index_file = migration / "css" / "index.json"
-    if not index_file.exists():
+    sources = [((migration / "css" / name).read_text(encoding="utf-8", errors="replace"), url) for name, url in read_json(index_file).items()] if index_file.exists() else []
+    sources += list(inline_styles(migration))
+    if not sources:
         return "", 0
+    reserved = reserved or set()
     (theme / "images" / "source").mkdir(parents=True, exist_ok=True)
     # Every rule once: builders and WordPress repeat the same stylesheet (or inline block) on every
     # page, and copying per page produced hundreds of near-identical files. @media groups merge.
     rules: dict[str, list[str]] = {"": []}
     seen: set[tuple[str, str]] = set()
-    ported, root_vars = 0, []
+    ported, root_vars = 0, {}
 
     def keep(media: str, rule: str) -> bool:
         nonlocal ported
@@ -231,13 +273,18 @@ def port_source_css(migration: Path, theme: Path, classes: set[str]) -> tuple[st
                 selectors.append("".join(f".src-{name}" for name in names) + match.group(2))
         if not selectors:
             return None
-        return f"{', '.join(selectors)} {{{rewrite_urls(body, css_url)}}}"
+        visual = visual_declarations(body)
+        if not visual:
+            return None
+        return f"{', '.join(selectors)} {{{rewrite_urls(visual, css_url)}}}"
 
-    for file_name, css_url in read_json(index_file).items():
-        css = (migration / "css" / file_name).read_text(encoding="utf-8", errors="replace")
+    for css, css_url in sources:
         for prelude, body in css_blocks(css):
-            if prelude == ":root":
-                root_vars.extend(declaration.strip() for declaration in body.split(";") if declaration.strip().startswith("--"))
+            if re.fullmatch(r"(?::root|html|body|:where\(body\)|:root\s*,\s*body)", prelude.strip()):
+                for declaration in declarations(body):
+                    name, _, value = declaration.partition(":")
+                    if name.strip().startswith("--") and value.strip():
+                        root_vars.setdefault(name.strip(), value.strip())
             elif prelude.startswith("@media"):
                 media = " ".join(prelude.split())
                 for inner_prelude, inner_body in css_blocks(body):
@@ -249,7 +296,15 @@ def port_source_css(migration: Path, theme: Path, classes: set[str]) -> tuple[st
                 if rule:
                     keep("", rule)
     header = "/* Ported from the source stylesheet: rules for section/card classes, mapped to .src-* hooks.\n   Regenerated by scaffold_theme.py --force; put hand edits in components.css or a later file. */\n"
-    variables = (":root {\n  " + ";\n  ".join(dict.fromkeys(root_vars)) + ";\n}\n") if root_vars else ""
+    # Only the custom properties the ported rules use (and what those use), and never one that would
+    # override a theme token (a plugin's :root { --font-body: 16px } once replaced the theme font).
+    needed, queue = set(), [rule for group in rules.values() for rule in group]
+    while queue:
+        for name in re.findall(r"var\(\s*(--[\w-]+)", queue.pop()):
+            if name not in needed and name in root_vars and name[2:] not in reserved:
+                needed.add(name)
+                queue.append(root_vars[name])
+    variables = (":root {\n  " + ";\n  ".join(f"{name}: {root_vars[name]}" for name in sorted(needed)) + ";\n}\n") if needed else ""
     output = rules.pop("")
     output += [f"{media} {{\n  " + "\n  ".join(inner) + "\n}" for media, inner in rules.items()]
     return header + variables + "\n".join(output) + "\n", ported
@@ -314,6 +369,8 @@ def navigation_config(chrome: dict, site: str, manifest: dict, theme: Path) -> d
         navigation[lang] = {
             "main": [{**link(item), **({"children": [link(child) for child in item["children"]]} if item.get("children") else {})} for item in summary.get("menu", [])],
             "ctas": [link(cta) for cta in summary.get("ctas", [])],
+            # The source header has a site search: rendered when the simplesearch plugin is enabled.
+            "search": True if summary.get("search") else None,
             "footer": {
                 "columns": [{"heading": column.get("heading"), "links": [link(entry) for entry in column["links"] if not any(domain in (entry.get("url") or "") for domain in ("twitter.com", "x.com", "instagram.com", "linkedin.com", "facebook.com", "youtube.com", "tiktok.com"))]} for column in summary.get("footer", {}).get("columns", [])],
                 "socials": summary.get("footer", {}).get("socials", []),
@@ -353,6 +410,7 @@ def theme_blueprint(title: str, languages: list[str]) -> str:
                         }},
                     },
                 },
+                f"navigation.{lang}.search": {"type": "toggle", "label": "Search box in header", "help": "Needs the simplesearch plugin", "highlight": 1, "options": {1: "Yes", 0: "No"}, "validate": {"type": "bool"}},
                 f"navigation.{lang}.ctas": {"type": "list", "label": "Header buttons", "fields": {
                     ".label": {"type": "text", "label": "Label"}, ".url": {"type": "text", "label": "Link"},
                     ".modal": {"type": "text", "label": "Opens modal (shared section name)"},
@@ -514,6 +572,8 @@ def main() -> int:
     if tokens_file.exists():
         tokens.update(read_json(tokens_file).get("tokens", {}))
     tokens.update(tone_tokens(migration, tokens))
+    # Measured layout (measure_layout.mjs): type scale steps, font roles, alternate header colors.
+    tokens.update(layoutkit.tokens(layoutkit.load(migration)))
     # A transparent source header (over a hero image/video) measures as "no background": fall back to
     # page colors so the generated header is legible, then style the overlay variant by hand.
     light_logo = bool(re.search(r"white|light|inverse|reverse", logo or "", re.I))
@@ -526,7 +586,7 @@ def main() -> int:
     fonts_css, notes = font_faces(migration, theme, args.fonts)
     src = theme / "css" / "src"
     (src / "tokens.css").write_text(tokens_css(tokens, args.tailwind), encoding="utf-8")
-    source_css, ported = port_source_css(migration, theme, section_classes(migration))
+    source_css, ported = port_source_css(migration, theme, section_classes(migration), reserved=set(tokens))
     (src / "source.css").write_text(source_css or "/* No source stylesheet captured. */\n", encoding="utf-8")
     (src / "fonts.css").write_text(fonts_css or "/* No source @font-face rules found. */\n", encoding="utf-8")
     write_json(theme / "design-tokens.json", tokens)
@@ -555,6 +615,7 @@ def main() -> int:
     if fresh or args.force or not design.exists():
         design.write_text(design_doc(title, tokens, audit, args.tailwind), encoding="utf-8")
     merge_config(grav, "user/config/system.yaml", {"pages": {"theme": slug}})
+    print("DRAFT THEME: exact source layouts, responsive/state styles and dedicated content types still require implementation and verification.")
     print(f"theme '{slug}' at {theme} ({'Tailwind 4' if args.tailwind else 'plain CSS'}); {ported} source CSS rules ported to .src-* hooks; activated; config → {user_config}")
     for note in notes:
         print(f"NOTE: {note}")
@@ -574,6 +635,12 @@ The single source of truth for new sections, components and animations in this t
 when a rule changes; agents read it before styling.
 
 ## Fidelity rule
+
+This is a generated draft. Tone/space presets and generic blocks are initial guesses, not a final
+design contract. Build source-specific templates and matching blueprints with named fields, preserve
+exact/asymmetric spacing, colors and typography, and measure desktop/tablet/mobile plus hover, focus
+and open/selected states. Override plugin output in the theme to match the source and test its behavior.
+A grayscale similarity score or passing text coverage is not visual acceptance.
 
 This theme reproduces {audit.get('source', 'the source site')}. Until the owner approves a redesign, match
 the source: compare desktop (1440px) and mobile (390px) screenshots section by section before

@@ -1,5 +1,5 @@
 {% set prefix = grav.language.enabled ? grav.language.getLanguageURLPrefix(lang) : '' %}
-<header class="site-header" data-header>
+<header class="site-header {{ page.header.header_variant ? 'site-header--' ~ page.header.header_variant }}" data-header>
   <div class="container site-header__bar">
     <a class="site-header__logo" href="{{ base_url == '' ? '/' : base_url }}{{ prefix }}" aria-label="{{ site.title }}">
       {% set logo = theme_media(config.theme.logo) %}
@@ -44,6 +44,14 @@
       </ul>
 
       <div class="site-nav__actions">
+        {% if nav.search and config.plugins.simplesearch.enabled %}
+          {# Grav's simplesearch plugin (https://github.com/getgrav/grav-plugin-simplesearch) serves the results page. #}
+          <form class="site-search" role="search" method="get" action="{{ base_url }}{{ config.plugins.simplesearch.route ?: '/search' }}">
+            <label class="sr-only" for="site-search">{{ 'THEME_SEARCH'|t }}</label>
+            <input id="site-search" type="search" name="query" placeholder="{{ 'THEME_SEARCH'|t }}">
+            <button type="button" aria-label="{{ 'THEME_SEARCH'|t }}" data-search-toggle><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+          </form>
+        {% endif %}
         {% include 'partials/language-switcher.html.twig' %}
         {% for cta in (nav.ctas ?? [])|filter(cta => not cta.mobile_only) %}
           {% if cta.modal %}
